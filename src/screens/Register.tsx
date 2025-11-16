@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../theme';
 import { Button, Input } from '../components';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth.hooks';
 import { Mail, Lock, User, Phone } from 'lucide-react';
 
 export const Register: React.FC = () => {
@@ -15,6 +15,7 @@ export const Register: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState('');
 
   const validateForm = () => {
     if (!fullName || !email || !phone || !password || !confirmPassword) {
@@ -48,8 +49,12 @@ export const Register: React.FC = () => {
     setLoading(true);
 
     try {
-      await register({ fullName, email, phone, password });
-      navigate('/home');
+      const message = await register({ fullName, email, phone, password });
+      if (message) {
+        setConfirmationMessage(message);
+      } else {
+        navigate('/home');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Eroare la înregistrare');
     } finally {
@@ -94,12 +99,33 @@ export const Register: React.FC = () => {
     fontSize: theme.typography.fontSize.sm,
   };
 
+  const confirmationStyles: React.CSSProperties = {
+    backgroundColor: `${theme.colors.success}20`,
+    color: theme.colors.success,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.lg,
+    fontSize: theme.typography.fontSize.sm,
+  };
+
   const loginTextStyles: React.CSSProperties = {
     textAlign: 'center',
     color: theme.colors.text.secondary,
     fontSize: theme.typography.fontSize.sm,
     marginTop: theme.spacing.lg,
   };
+
+  if (confirmationMessage) {
+    return (
+      <div style={containerStyles}>
+        <div style={headerStyles}>
+          <h1 style={titleStyles}>Verifică email-ul</h1>
+          <p style={subtitleStyles}>Am trimis un link de confirmare pe adresa ta.</p>
+        </div>
+        <div style={confirmationStyles}>{confirmationMessage}</div>
+      </div>
+    );
+  }
 
   return (
     <div style={containerStyles}>

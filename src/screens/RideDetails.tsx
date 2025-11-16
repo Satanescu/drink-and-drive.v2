@@ -1,17 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { theme } from '../theme';
 import { Button, Card, Map } from '../components';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth.hooks';
 import { ridesAPI } from '../api';
-import { ArrowLeft, MapPin, Clock, DollarSign } from 'lucide-react';
-import { Location as LocationType } from '../types';
+import { ArrowLeft, Clock, DollarSign } from 'lucide-react';
+import { Location as LocationType, ServiceType } from '../types';
+
+interface RideDetailsState {
+  destination: string;
+  serviceType: ServiceType;
+  pickup: LocationType;
+}
 
 export const RideDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const state = location.state as any;
+  const state = location.state as RideDetailsState;
 
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'online'>('cash');
   const [promoCode, setPromoCode] = useState('');
@@ -30,7 +36,7 @@ export const RideDetails: React.FC = () => {
     try {
       const ride = await ridesAPI.createRide({
         clientId: user.id,
-        serviceType: serviceType as any,
+        serviceType: serviceType as ServiceType,
         pickup,
         destination: { lat: 44.4368, lng: 26.0925, address: destination },
         paymentMethod: paymentMethod as 'cash' | 'card' | 'online',
@@ -120,12 +126,7 @@ export const RideDetails: React.FC = () => {
     marginBottom: theme.spacing.lg,
   };
 
-  const estCardStyles: React.CSSProperties = {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.lg,
-    textAlign: 'center',
-  };
+
 
   const paymentOptionsStyles: React.CSSProperties = {
     display: 'grid',

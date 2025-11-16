@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { theme } from '../theme';
 import { Button, Card, Badge } from '../components';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth.hooks';
 import { ridesAPI } from '../api';
 import { MapPin, TrendingUp, Star, DollarSign, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -111,12 +111,7 @@ export const DriverHome: React.FC = () => {
     marginBottom: theme.spacing.xl,
   };
 
-  const statCardStyles: React.CSSProperties = {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.lg,
-    textAlign: 'center',
-  };
+
 
   const statLabelStyles: React.CSSProperties = {
     fontSize: theme.typography.fontSize.xs,

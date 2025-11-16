@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../theme';
-import { Button, Card, Map } from '../components';
-import { useAuth } from '../context/AuthContext';
+import { Button, Map } from '../components';
+import { useAuth } from '../context/auth.hooks';
 import { MapPin, Home, Briefcase, Clock, AlertCircle } from 'lucide-react';
-import { ServiceType, Location } from '../types';
+import { ServiceType } from '../types';
 
 export const ClientHome: React.FC = () => {
   const navigate = useNavigate();

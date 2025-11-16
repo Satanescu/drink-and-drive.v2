@@ -1,133 +1,312 @@
-import { User } from '../types';
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const mockUsers: User[] = [
-  {
-    id: '1',
-    fullName: 'Ion Popescu',
-    email: 'ion@example.com',
-    phone: '+40 721 234 567',
-    role: 'client',
-    profilePhoto: undefined,
-    rating: 4.8,
-    createdAt: new Date('2024-01-15'),
-  },
-  {
-    id: '2',
-    fullName: 'Maria Ionescu',
-    email: 'maria@example.com',
-    phone: '+40 722 345 678',
-    role: 'driver',
-    profilePhoto: undefined,
-    rating: 4.9,
-    createdAt: new Date('2024-02-20'),
-  },
-];
-
-let currentUser: User | null = null;
+import { supabase } from '../lib/supabase';
+import { User, UserRole } from '../types';
 
 export const authAPI = {
   async login(email: string, password: string): Promise<{ user: User; token: string }> {
-    await delay(1000);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-    const user = mockUsers.find((u) => u.email === email);
-    if (!user || password.length < 6) {
-      throw new Error('Email sau parolă greșită');
+    if (error) {
+      throw new Error(error.message);
     }
 
-    currentUser = user;
-    const token = `mock-token-${user.id}`;
-    localStorage.setItem('auth_token', token);
-    localStorage.setItem('user', JSON.stringify(user));
-
-    return { user, token };
-  },
-
-  async register(data: {
-    fullName: string;
-    email: string;
-    phone: string;
-    password: string;
-  }): Promise<{ user: User; token: string }> {
-    await delay(1200);
-
-    if (mockUsers.find((u) => u.email === data.email)) {
-      throw new Error('Email-ul este deja folosit');
+    if (!data.session || !data.user) {
+      throw new Error('Login failed: No session or user data');
     }
 
-    if (data.password.length < 6) {
-      throw new Error('Parola trebuie să aibă minim 6 caractere');
+    // Fetch profile information
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      throw new Error(profileError.message);
     }
 
-    const newUser: User = {
-      id: `${mockUsers.length + 1}`,
-      fullName: data.fullName,
-      email: data.email,
-      phone: data.phone,
-      role: 'client',
-      profilePhoto: undefined,
-      rating: undefined,
-      createdAt: new Date(),
+    if (!profileData) {
+      throw new Error('User profile not found.');
+    }
+
+    const user: User = {
+      id: profileData.id,
+      fullName: profileData.full_name,
+      email: data.user.email || '',
+      phone: profileData.phone,
+      role: profileData.role,
+      profilePhoto: profileData.profile_photo,
+      rating: profileData.rating,
+      createdAt: new Date(profileData.created_at),
     };
 
-    mockUsers.push(newUser);
-    currentUser = newUser;
+    localStorage.setItem('auth_token', data.session.access_token);
+    localStorage.setItem('user', JSON.stringify(user));
 
-    const token = `mock-token-${newUser.id}`;
-    localStorage.setItem('auth_token', token);
-    localStorage.setItem('user', JSON.stringify(newUser));
-
-    return { user: newUser, token };
+    return { user, token: data.session.access_token };
   },
 
+    async register(data: {
+
+      fullName: string;
+
+      email: string;
+
+      phone: string;
+
+      password: string;
+
+    }): Promise<{ user: User; token: string | null; message?: string }> {
+
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+
+        email: data.email,
+
+        password: data.password,
+
+      });
+
+  
+
+      if (authError) {
+
+        throw new Error(authError.message);
+
+      }
+
+  
+
+      if (!authData.user) {
+
+        throw new Error('Registration failed: No user data');
+
+      }
+
+  
+
+      const { error: profileError } = await supabase.from('profiles').insert({
+
+        id: authData.user.id,
+
+        full_name: data.fullName,
+
+        phone: data.phone,
+
+        role: 'client', // Default role for new registrations
+
+        created_at: new Date().toISOString(),
+
+      });
+
+  
+
+      if (profileError) {
+
+        throw new Error(profileError.message);
+
+      }
+
+  
+
+      const user: User = {
+
+        id: authData.user.id,
+
+        fullName: data.fullName,
+
+        email: authData.user.email || '',
+
+        phone: data.phone,
+
+        role: 'client',
+
+        profilePhoto: undefined,
+
+        rating: undefined,
+
+        createdAt: new Date(),
+
+      };
+
+  
+
+      if (!authData.session) {
+
+        return { user, token: null, message: 'Please check your email to confirm your registration.' };
+
+      }
+
+  
+
+      localStorage.setItem('auth_token', authData.session.access_token);
+
+      localStorage.setItem('user', JSON.stringify(user));
+
+  
+
+      return { user, token: authData.session.access_token };
+
+    },
+
   async logout(): Promise<void> {
-    await delay(500);
-    currentUser = null;
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw new Error(error.message);
+    }
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
   },
 
   async getCurrentUser(): Promise<User | null> {
-    await delay(300);
+    const { data: { session }, error } = await supabase.auth.getSession();
 
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('auth_token');
-
-    if (storedUser && token) {
-      currentUser = JSON.parse(storedUser);
-      return currentUser;
+    if (error) {
+      console.error('Error getting session:', error);
+      return null;
     }
 
-    return null;
+    if (!session) {
+      return null;
+    }
+
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      return null;
+    }
+
+    if (!profileData) {
+      return null;
+    }
+
+    const user: User = {
+      id: profileData.id,
+      fullName: profileData.full_name,
+      email: session.user.email || '',
+      phone: profileData.phone,
+      role: profileData.role,
+      profilePhoto: profileData.profile_photo,
+      rating: profileData.rating,
+      createdAt: new Date(profileData.created_at),
+    };
+
+    localStorage.setItem('auth_token', session.access_token);
+    localStorage.setItem('user', JSON.stringify(user));
+
+    return user;
   },
 
   async forgotPassword(email: string): Promise<{ message: string }> {
-    await delay(1000);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/update-password`, // You might want to configure this redirect URL
+    });
 
-    const user = mockUsers.find((u) => u.email === email);
-    if (!user) {
-      throw new Error('Email-ul nu a fost găsit');
+    if (error) {
+      throw new Error(error.message);
     }
 
     return { message: 'Am trimis instrucțiuni de resetare a parolei pe email' };
   },
 
   async updateUser(userId: string, updates: Partial<User>): Promise<User> {
-    await delay(800);
+    // Update auth.users table for email/password changes
+    const authUpdates: { email?: string; password?: string } = {};
+    if (updates.email) authUpdates.email = updates.email;
+    // Supabase doesn't allow direct password update via updateUser for security reasons,
+    // it's usually handled via resetPasswordForEmail flow.
+    // if (updates.password) authUpdates.password = updates.password;
 
-    const userIndex = mockUsers.findIndex((u) => u.id === userId);
-    if (userIndex === -1) {
-      throw new Error('Utilizatorul nu a fost găsit');
+    if (Object.keys(authUpdates).length > 0) {
+      const { error: authError } = await supabase.auth.updateUser(authUpdates);
+      if (authError) {
+        throw new Error(authError.message);
+      }
     }
 
-    mockUsers[userIndex] = { ...mockUsers[userIndex], ...updates };
+    // Update profiles table for other user details
+    const profileUpdates: {
+      full_name?: string;
+      phone?: string;
+      role?: UserRole;
+      profile_photo?: string;
+      rating?: number;
+    } = {};
+    if (updates.fullName) profileUpdates.full_name = updates.fullName;
+    if (updates.phone) profileUpdates.phone = updates.phone;
+    if (updates.role) profileUpdates.role = updates.role;
+    if (updates.profilePhoto) profileUpdates.profile_photo = updates.profilePhoto;
+    if (updates.rating) profileUpdates.rating = updates.rating;
 
-    if (currentUser?.id === userId) {
-      currentUser = mockUsers[userIndex];
-      localStorage.setItem('user', JSON.stringify(currentUser));
+    if (Object.keys(profileUpdates).length > 0) {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('id', userId)
+        .select()
+        .maybeSingle();
+
+      if (profileError) {
+        throw new Error(profileError.message);
+      }
+
+      if (!profileData) {
+        throw new Error('User profile not found.');
+      }
+
+      const updatedUser: User = {
+        id: profileData.id,
+        fullName: profileData.full_name,
+        email: updates.email || '', // Email might not be in profileData if not updated
+        phone: profileData.phone,
+        role: profileData.role,
+        profilePhoto: profileData.profile_photo,
+        rating: profileData.rating,
+        createdAt: new Date(profileData.created_at),
+      };
+
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      return updatedUser;
     }
 
-    return mockUsers[userIndex];
+    // If only auth.users fields were updated (e.g., email), we need to re-fetch the user to get the latest email
+    const { data: { user: currentAuthUser }, error: getAuthUserError } = await supabase.auth.getUser();
+    if (getAuthUserError) {
+      throw new Error(getAuthUserError.message);
+    }
+
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profileError) {
+      throw new Error(profileError.message);
+    }
+
+    if (!profileData) {
+      throw new Error('User profile not found.');
+    }
+
+    const finalUser: User = {
+      id: profileData.id,
+      fullName: profileData.full_name,
+      email: currentAuthUser?.email || '',
+      phone: profileData.phone,
+      role: profileData.role,
+      profilePhoto: profileData.profile_photo,
+      rating: profileData.rating,
+      createdAt: new Date(profileData.created_at),
+    };
+
+    localStorage.setItem('user', JSON.stringify(finalUser));
+    return finalUser;
   },
 };

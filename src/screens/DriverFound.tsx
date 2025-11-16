@@ -3,12 +3,18 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { theme } from '../theme';
 import { Button, Card, Modal } from '../components';
 import { ridesAPI } from '../api';
-import { User, MapPin, Star, Clock } from 'lucide-react';
+import { User, Star } from 'lucide-react';
+import { Ride, Driver } from '../types';
+
+interface DriverFoundState {
+  ride: Ride;
+  driver: Driver;
+}
 
 export const DriverFound: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as any;
+  const state = location.state as DriverFoundState;
 
   const ride = state?.ride;
   const driver = state?.driver;

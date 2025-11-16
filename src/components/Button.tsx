@@ -11,6 +11,7 @@ interface ButtonProps {
   icon?: React.ReactNode;
   className?: string;
   type?: 'button' | 'submit' | 'reset';
+  style?: React.CSSProperties;
 }
 
 export const Button: React.FC<ButtonProps> = ({

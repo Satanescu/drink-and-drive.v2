@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { theme } from '../theme';
-import { Button, Card } from '../components';
+import { Button } from '../components';
 import { ridesAPI } from '../api';
 import { Loader } from 'lucide-react';
+
+interface SearchingRideState {
+  rideId: string;
+}
 
 export const SearchingRide: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as any;
+  const state = location.state as SearchingRideState;
   const [searching, setSearching] = useState(true);
 
   useEffect(() => {

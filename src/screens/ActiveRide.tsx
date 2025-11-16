@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { theme } from '../theme';
-import { Button, Card, BottomSheet, Map, Modal } from '../components';
+import { Button, BottomSheet, Map, Modal } from '../components';
 import { ridesAPI } from '../api';
-import { MessageCircle, Phone, AlertTriangle, Share2, User, MapPin } from 'lucide-react';
+import { MessageCircle, Phone, AlertTriangle, Share2, User } from 'lucide-react';
+import { Ride, Driver } from '../types';
+
+interface ActiveRideState {
+  ride: Ride;
+  driver: Driver;
+}
 
 export const ActiveRide: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as any;
+  const state = location.state as ActiveRideState;
 
   const ride = state?.ride;
   const driver = state?.driver;
@@ -16,7 +22,6 @@ export const ActiveRide: React.FC = () => {
   const [showOptions, setShowOptions] = useState(false);
   const [showSOSModal, setShowSOSModal] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
-  const [sosType, setSOSType] = useState<'call' | 'contact' | null>(null);
 
   if (!ride || !driver) {
     return <div style={{ textAlign: 'center', padding: '2rem', color: theme.colors.text.primary }}>Eroare</div>;
@@ -28,7 +33,6 @@ export const ActiveRide: React.FC = () => {
   };
 
   const handleSOS = (type: 'call' | 'contact') => {
-    setSOSType(type);
     if (type === 'call') {
       window.location.href = 'tel:112';
     }
@@ -231,7 +235,7 @@ export const ActiveRide: React.FC = () => {
           <Button
             onClick={() => {
               setShowOptions(false);
-              window.location.href = `https://maps.google.com/?q=${window.location.coordinates}`;
+              window.location.href = `https://maps.google.com/?q=${driver.currentLocation.lat},${driver.currentLocation.lng}`;
             }}
             variant="ghost"
             size="md"

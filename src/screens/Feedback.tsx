@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../theme';
-import { Button, Card } from '../components';
+import { Button } from '../components';
 import { CheckCircle } from 'lucide-react';
 
 export const Feedback: React.FC = () => {

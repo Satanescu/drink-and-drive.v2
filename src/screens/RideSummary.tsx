@@ -2,17 +2,22 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { theme } from '../theme';
 import { Button, Card } from '../components';
-import { Clock, MapPin, DollarSign, Star } from 'lucide-react';
+import { Clock, DollarSign } from 'lucide-react';
+import { Ride, Driver } from '../types';
+
+interface RideSummaryState {
+  ride: Ride;
+  driver: Driver;
+}
 
 export const RideSummary: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as any;
+  const state = location.state as RideSummaryState;
   const ride = state?.ride;
   const driver = state?.driver;
 
   const [rating, setRating] = useState(0);
-  const [showFeedback, setShowFeedback] = useState(false);
 
   if (!ride) {
     return <div style={{ textAlign: 'center', padding: '2rem', color: theme.colors.text.primary }}>Eroare</div>;
@@ -42,13 +47,6 @@ export const RideSummary: React.FC = () => {
     gridTemplateColumns: '1fr 1fr',
     gap: theme.spacing.md,
     marginBottom: theme.spacing.xl,
-  };
-
-  const detailCardStyles: React.CSSProperties = {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
-    borderRadius: theme.borderRadius.lg,
-    textAlign: 'center',
   };
 
   const detailLabelStyles: React.CSSProperties = {

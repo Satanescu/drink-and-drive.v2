@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../theme';
 import { Button, Card } from '../components';
-import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, LogOut, User, Bell, Phone } from 'lucide-react';
+import { useAuth } from '../context/auth.hooks';
+import { ArrowLeft, LogOut, User } from 'lucide-react';
 
 export const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ export const Profile: React.FC = () => {
 
   const handleRoleChange = async () => {
     const newRole = isDriver ? 'client' : 'driver';
-    await updateUser({ role: newRole as any });
+    await updateUser({ role: newRole as UserRole });
     setIsDriver(!isDriver);
   };
 

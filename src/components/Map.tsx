@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { theme } from '../theme';
 import { MapPin, Navigation } from 'lucide-react';
 import { Location } from '../types';
+import { renderToString } from 'react-dom/server';
+
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
 interface MapProps {
   center?: Location;
@@ -10,87 +15,86 @@ interface MapProps {
   showUserLocation?: boolean;
 }
 
+const getIconSvgString = (IconComponent: React.ElementType) => {
+  return renderToString(<IconComponent size={20} />);
+};
+
 export const Map: React.FC<MapProps> = ({
   center = { lat: 44.4268, lng: 26.1025 },
   markers = [],
   height = '400px',
   showUserLocation = true,
 }) => {
-  const mapStyles: React.CSSProperties = {
-    width: '100%',
-    height,
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.borderRadius.lg,
-    position: 'relative',
-    overflow: 'hidden',
-    backgroundImage: `linear-gradient(${theme.colors.border.light} 1px, transparent 1px), linear-gradient(90deg, ${theme.colors.border.light} 1px, transparent 1px)`,
-    backgroundSize: '20px 20px',
-  };
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
 
-  const markerContainerStyles: React.CSSProperties = {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-  };
+  useEffect(() => {
+    if (map.current) return; // Initialize map only once
 
-  const markerStyles: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    backgroundColor: theme.colors.primary,
-    color: theme.colors.text.primary,
-    boxShadow: theme.shadows.lg,
-  };
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current!,
+      style: 'mapbox://styles/mapbox/streets-v11',
+      center: [center.lng, center.lat],
+      zoom: 12,
+    });
 
-  const placeholderTextStyles: React.CSSProperties = {
-    position: 'absolute',
-    bottom: theme.spacing.md,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    backgroundColor: theme.colors.surface,
-    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-    borderRadius: theme.borderRadius.md,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.text.secondary,
-    fontFamily: theme.typography.fontFamily.primary,
-  };
+    map.current.on('load', () => {
+      // Add user location marker if showUserLocation is true
+      if (showUserLocation) {
+        const el = document.createElement('div');
+        el.className = 'user-marker';
+        el.style.backgroundColor = theme.colors.primary;
+        el.style.borderRadius = '50%';
+        el.style.width = '40px';
+        el.style.height = '40px';
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.justifyContent = 'center';
+        el.style.color = theme.colors.text.primary;
+        el.style.boxShadow = theme.shadows.lg;
+        el.innerHTML = getIconSvgString(Navigation);
+
+        new mapboxgl.Marker(el).setLngLat([center.lng, center.lat]).addTo(map.current!);
+      }
+
+      // Add other markers
+      markers.forEach((marker) => {
+        const el = document.createElement('div');
+        el.className = 'marker';
+        el.style.backgroundColor =
+          marker.type === 'driver'
+            ? theme.colors.success
+            : marker.type === 'destination'
+            ? theme.colors.error
+            : theme.colors.primary;
+        el.style.borderRadius = '50%';
+        el.style.width = '40px';
+        el.style.height = '40px';
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.justifyContent = 'center';
+        el.style.color = theme.colors.text.primary;
+        el.style.boxShadow = theme.shadows.lg;
+        el.innerHTML = getIconSvgString(MapPin);
+
+        new mapboxgl.Marker(el).setLngLat([marker.location.lng, marker.location.lat]).addTo(map.current!);
+      });
+    });
+
+    return () => {
+      map.current?.remove();
+    };
+  }, [center, markers, showUserLocation]);
 
   return (
-    <div style={mapStyles}>
-      <div style={markerContainerStyles}>
-        {showUserLocation && (
-          <div style={markerStyles}>
-            <Navigation size={20} />
-          </div>
-        )}
-        {markers.map((marker, index) => (
-          <div
-            key={index}
-            style={{
-              ...markerStyles,
-              backgroundColor:
-                marker.type === 'driver'
-                  ? theme.colors.success
-                  : marker.type === 'destination'
-                  ? theme.colors.error
-                  : theme.colors.primary,
-            }}
-          >
-            <MapPin size={20} />
-          </div>
-        ))}
-      </div>
-      <div style={placeholderTextStyles}>
-        Hartă (Mock) - {center.address || `${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}`}
-      </div>
-    </div>
+    <div
+      ref={mapContainer}
+      style={{
+        width: '100%',
+        height,
+        borderRadius: theme.borderRadius.lg,
+        overflow: 'hidden',
+      }}
+    />
   );
 };

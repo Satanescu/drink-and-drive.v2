@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/auth.hooks';
 import { theme } from './theme';
 
 import { Onboarding } from './screens/Onboarding';
@@ -10,7 +11,6 @@ import { ForgotPassword } from './screens/ForgotPassword';
 import { ClientHome } from './screens/ClientHome';
 import { SafetyInfo } from './screens/SafetyInfo';
 import { Profile } from './screens/Profile';
-import { NotFound } from './screens/NotFound';
 import { RideDetails } from './screens/RideDetails';
 import { SearchingRide } from './screens/SearchingRide';
 import { DriverFound } from './screens/DriverFound';
@@ -18,34 +18,6 @@ import { ActiveRide } from './screens/ActiveRide';
 import { RideSummary } from './screens/RideSummary';
 import { Feedback } from './screens/Feedback';
 import { DriverHome } from './screens/DriverHome';
-
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          backgroundColor: theme.colors.background,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: theme.colors.text.primary,
-          fontFamily: theme.typography.fontFamily.primary,
-        }}
-      >
-        Se încarcă...
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-};
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
