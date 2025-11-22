@@ -6,11 +6,12 @@ import { useAuth } from '../context/auth.hooks';
 import { ridesAPI } from '../api';
 import { ArrowLeft, Clock, DollarSign } from 'lucide-react';
 import { Location as LocationType, ServiceType } from '../types';
+import { ViewState } from 'react-map-gl';
 
 interface RideDetailsState {
-  destination: string;
+  destination: LocationType & { address: string };
   serviceType: ServiceType;
-  pickup: LocationType;
+  pickup: LocationType & { address: string };
 }
 
 export const RideDetails: React.FC = () => {
@@ -22,10 +23,15 @@ export const RideDetails: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'online'>('cash');
   const [promoCode, setPromoCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [viewState, setViewState] = useState<Partial<ViewState>>({
+    latitude: state?.pickup?.lat || 44.4268,
+    longitude: state?.pickup?.lng || 26.1025,
+    zoom: 14,
+  });
 
-  const destination = state?.destination || '';
+  const destination = state?.destination?.address || '';
   const serviceType = state?.serviceType || 'standard';
-  const pickup = state?.pickup as LocationType;
+  const pickup = state?.pickup;
 
   if (!user || !pickup) {
     return <div style={{ textAlign: 'center', padding: '2rem', color: theme.colors.text.primary }}>Eroare</div>;
@@ -38,7 +44,7 @@ export const RideDetails: React.FC = () => {
         clientId: user.id,
         serviceType: serviceType as ServiceType,
         pickup,
-        destination: { lat: 44.4368, lng: 26.0925, address: destination },
+        destination: state.destination,
         paymentMethod: paymentMethod as 'cash' | 'card' | 'online',
         promoCode,
       });
@@ -156,6 +162,14 @@ export const RideDetails: React.FC = () => {
     marginBottom: theme.spacing.lg,
   };
 
+  const markers = [];
+  if (pickup) {
+    markers.push({ location: pickup, type: 'pickup' });
+  }
+  if (state.destination) {
+    markers.push({ location: state.destination, type: 'destination' });
+  }
+
   return (
     <div style={containerStyles}>
       <div style={headerStyles}>
@@ -166,7 +180,12 @@ export const RideDetails: React.FC = () => {
       </div>
 
       <div style={mapContainerStyles}>
-        <Map height="250px" />
+        <Map
+          height="250px"
+          markers={markers}
+          viewState={viewState}
+          onViewStateChange={(e) => setViewState(e.viewState)}
+        />
       </div>
 
       <h2 style={sectionTitleStyles}>Ruta</h2>

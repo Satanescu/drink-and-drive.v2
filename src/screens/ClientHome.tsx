@@ -1,17 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../theme';
-import { Button, Map } from '../components';
+import { Button, Map, AddressInput } from '../components';
 import { useAuth } from '../context/auth.hooks';
 import { MapPin, Home, Briefcase, Clock, AlertCircle } from 'lucide-react';
-import { ServiceType } from '../types';
+import { ServiceType, Location } from '../types';
+import { geocode, reverseGeocode } from '../lib/mapbox';
+import { ViewState } from 'react-map-gl';
 
 export const ClientHome: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [destination, setDestination] = useState('');
+  const [pickupAddress, setPickupAddress] = useState('');
+  const [destinationAddress, setDestinationAddress] = useState('');
+  const [pickupCoords, setPickupCoords] = useState<Location | null>(null);
+  const [destinationCoords, setDestinationCoords] = useState<Location | null>(null);
   const [serviceType, setServiceType] = useState<ServiceType>('standard');
-  const [showDestinationInput, setShowDestinationInput] = useState(false);
+  const [userLocation, setUserLocation] = useState<Location | null>(null);
+  const [viewState, setViewState] = useState<Partial<ViewState>>({
+    latitude: 45.7606, // Timisoara
+    longitude: 21.2267,
+    zoom: 12,
+  });
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const location = { lat: latitude, lng: longitude };
+          setUserLocation(location);
+          setViewState((vs) => ({ ...vs, latitude, longitude, zoom: 14 }));
+          setPickupCoords(location);
+          reverseGeocode(location).then(setPickupAddress);
+        },
+        (error) => {
+          console.error('Error getting user location:', error);
+        }
+      );
+    }
+  }, []);
 
   if (!user) {
     return null;
@@ -72,27 +100,6 @@ export const ClientHome: React.FC = () => {
     marginBottom: theme.spacing.xl,
   };
 
-  const suggestionsContainerStyles: React.CSSProperties = {
-    display: 'flex',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.xl,
-    overflowX: 'auto',
-    paddingBottom: theme.spacing.md,
-  };
-
-  const suggestionChipStyles = (active: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-    backgroundColor: active ? theme.colors.primary : theme.colors.surface,
-    color: active ? theme.colors.text.primary : theme.colors.text.secondary,
-    borderRadius: theme.borderRadius.full,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    border: `1px solid ${active ? theme.colors.primary : theme.colors.border.light}`,
-  });
-
   const serviceCardsContainerStyles: React.CSSProperties = {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
@@ -117,41 +124,32 @@ export const ClientHome: React.FC = () => {
     marginTop: theme.spacing.sm,
   });
 
-  const destinationInputStyles: React.CSSProperties = {
-    backgroundColor: theme.colors.surface,
-    border: `1px solid ${theme.colors.border.light}`,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.primary,
-    fontSize: theme.typography.fontSize.base,
-    width: '100%',
-    marginBottom: theme.spacing.lg,
-  };
-
   const handleServiceSelect = (type: ServiceType) => {
     setServiceType(type);
   };
 
-  const handleDestinationSelect = (addr: string) => {
-    setDestination(addr);
-    setShowDestinationInput(false);
-  };
-
   const handleContinue = () => {
-    if (!destination) {
-      alert('Alege o destinație');
+    if (!pickupAddress || !destinationAddress) {
+      alert('Alege o adresă de preluare și una de destinație');
       return;
     }
 
     navigate('/ride/details', {
       state: {
-        destination,
+        destination: { ...destinationCoords, address: destinationAddress },
+        pickup: { ...pickupCoords, address: pickupAddress },
         serviceType,
-        pickup: { lat: 44.4268, lng: 26.1025, address: 'Locația curentă' },
       },
     });
   };
+
+  const markers = [];
+  if (pickupCoords) {
+    markers.push({ location: pickupCoords, type: 'pickup' });
+  }
+  if (destinationCoords) {
+    markers.push({ location: destinationCoords, type: 'destination' });
+  }
 
   return (
     <div style={containerStyles}>
@@ -169,67 +167,37 @@ export const ClientHome: React.FC = () => {
       <div style={contentStyles}>
         <h3 style={sectionTitleStyles}>Unde mergem?</h3>
 
-        {showDestinationInput ? (
-          <>
-            <input
-              type="text"
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              placeholder="Introdu adresa de destinație"
-              style={destinationInputStyles}
-            />
-            <Button
-              onClick={() => setShowDestinationInput(false)}
-              variant="secondary"
-              size="md"
-              fullWidth
-            >
-              Anulează
-            </Button>
-          </>
-        ) : (
-          <>
-            <div style={suggestionsContainerStyles}>
-              <div style={suggestionChipStyles(false)} onClick={() => handleDestinationSelect('Acasă')}>
-                <Home size={16} />
-                Acasă
-              </div>
-              <div style={suggestionChipStyles(false)} onClick={() => handleDestinationSelect('Serviciu')}>
-                <Briefcase size={16} />
-                Serviciu
-              </div>
-              <div style={suggestionChipStyles(false)} onClick={() => handleDestinationSelect('Custom')}>
-                <Clock size={16} />
-                Última destinație
-              </div>
-              <div
-                style={suggestionChipStyles(false)}
-                onClick={() => setShowDestinationInput(true)}
-              >
-                <MapPin size={16} />
-                Altele
-              </div>
-            </div>
+        <AddressInput
+          value={pickupAddress}
+          onChange={setPickupAddress}
+          onSelect={(address, coords) => {
+            setPickupAddress(address);
+            setPickupCoords(coords);
+            setViewState((vs) => ({ ...vs, latitude: coords.lat, longitude: coords.lng, zoom: 14 }));
+          }}
+          placeholder="Introdu adresa de preluare"
+          userLocation={userLocation}
+        />
 
-            {destination && (
-              <div
-                style={{
-                  ...suggestionChipStyles(true),
-                  display: 'flex',
-                  padding: theme.spacing.md,
-                  marginBottom: theme.spacing.lg,
-                  cursor: 'default',
-                }}
-              >
-                <MapPin size={16} />
-                <span>{destination}</span>
-              </div>
-            )}
-          </>
-        )}
+        <AddressInput
+          value={destinationAddress}
+          onChange={setDestinationAddress}
+          onSelect={(address, coords) => {
+            setDestinationAddress(address);
+            setDestinationCoords(coords);
+            setViewState((vs) => ({ ...vs, latitude: coords.lat, longitude: coords.lng, zoom: 14 }));
+          }}
+          placeholder="Introdu adresa de destinație"
+          userLocation={userLocation}
+        />
 
         <div style={mapContainerStyles}>
-          <Map height="300px" />
+          <Map
+            height="300px"
+            markers={markers}
+            viewState={viewState}
+            onViewStateChange={(e) => setViewState(e.viewState)}
+          />
         </div>
 
         <h3 style={sectionTitleStyles}>Tipul de serviciu</h3>
@@ -276,7 +244,7 @@ export const ClientHome: React.FC = () => {
           size="lg"
           fullWidth
         >
-          {destination ? 'Continuă către detalii cursă' : 'Alege destinația'}
+          {pickupAddress && destinationAddress ? 'Continuă către detalii cursă' : 'Alege adresele'}
         </Button>
 
         <Button

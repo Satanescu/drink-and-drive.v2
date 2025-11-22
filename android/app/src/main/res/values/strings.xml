@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Drink&amp;Drive</string>
+    <string name="title_activity_main">Drink&amp;Drive</string>
+    <string name="package_name">com.drinkanddrive.app</string>
+    <string name="custom_url_scheme">com.drinkanddrive.app</string>
+</resources>
