@@ -17,6 +17,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { Header } from '../components/Header';
 import { useLanguage } from '../context/LanguageContext';
 
 export const Profile: React.FC = () => {
@@ -49,40 +50,11 @@ export const Profile: React.FC = () => {
   const headerCardStyles: React.CSSProperties = {
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.xl,
-    paddingTop: theme.spacing.xxl,
     textAlign: 'center',
     borderBottomLeftRadius: theme.borderRadius.xxl,
     borderBottomRightRadius: theme.borderRadius.xxl,
   };
-
-  const headerStyles: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: theme.spacing.xl,
-    paddingTop: theme.spacing.lg,
-    backgroundColor: theme.colors.surface,
-  };
-
-  const backButtonStyles: React.CSSProperties = {
-    background: 'none',
-    border: 'none',
-    color: theme.colors.text.secondary,
-    cursor: 'pointer',
-    padding: 0,
-    display: 'flex',
-    alignItems: 'center',
-  };
-
-  const titleStyles: React.CSSProperties = {
-    fontSize: theme.typography.fontSize['2xl'],
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.text.primary,
-    flexGrow: 1,
-    textAlign: 'center',
-    marginRight: '24px', // To balance the back button
-  };
-
+  
   const avatarStyles: React.CSSProperties = {
     width: '80px',
     height: '80px',
@@ -172,12 +144,7 @@ export const Profile: React.FC = () => {
 
   return (
     <div style={containerStyles}>
-      <div style={headerStyles}>
-        <button style={backButtonStyles} onClick={() => navigate('/home')}>
-          <ArrowLeft size={24} />
-        </button>
-        <h1 style={titleStyles}>{t('profile')}</h1>
-      </div>
+      <Header title={t('profile')} />
 
       <div style={{ ...headerCardStyles, paddingTop: theme.spacing.lg }}>
         <div style={avatarStyles}>{getInitials(user.fullName)}</div>

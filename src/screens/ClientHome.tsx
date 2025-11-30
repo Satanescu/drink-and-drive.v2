@@ -11,7 +11,7 @@ import { useLanguage } from '../context/LanguageContext';
 
 export const ClientHome: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, switchActiveRole } = useAuth();
   const { t } = useLanguage();
   const [pickupAddress, setPickupAddress] = useState('');
   const [destinationAddress, setDestinationAddress] = useState('');
@@ -184,9 +184,16 @@ export const ClientHome: React.FC = () => {
     <div style={containerStyles}>
       <div style={headerStyles}>
         <div style={greetingStyles}>{t('hello')}, {firstName}!</div>
-        <Button onClick={() => navigate('/profile')} variant="ghost" size="icon">
-          <User />
-        </Button>
+        <div>
+          {user.role === 'driver' && (
+            <Button onClick={() => switchActiveRole('driver')} variant="primary" size="sm">
+              Switch to Driver
+            </Button>
+          )}
+          <Button onClick={() => navigate('/profile')} variant="ghost" size="icon">
+            <User />
+          </Button>
+        </div>
       </div>
 
       <div style={{ padding: `0 ${theme.spacing.xl}` }}>

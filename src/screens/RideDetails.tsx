@@ -4,7 +4,7 @@ import { theme } from '../theme';
 import { Button, Card, Map } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { ridesAPI } from '../api';
-import { ArrowLeft, Clock, DollarSign } from 'lucide-react';
+import { ArrowLeft, Clock, DollarSign, MapPin } from 'lucide-react';
 import { Location, ServiceType } from '../types';
 import { ViewState } from 'react-map-gl';
 

@@ -27,9 +27,14 @@ import { HelpCenter } from './screens/HelpCenter';
 import { PrivacyPolicy } from './screens/PrivacyPolicy';
 import { TermsAndConditions } from './screens/TermsAndConditions';
 import { RoleSelection } from './screens/RoleSelection';
+import { DriverTypeSelection } from './screens/DriverTypeSelection';
+import { CarRegistration } from './screens/CarRegistration';
+import { ScooterRegistration } from './screens/ScooterRegistration';
+import { DriverMap } from './screens/DriverMap';
+import { VehicleSelection } from './screens/VehicleSelection';
 
-const AppContent: React.FC = React.memo(() => {
-  const { user, loading } = useAuth();
+const AppContent: React.FC = () => {
+  const { user, activeVehicle, loading, activeRole } = useAuth();
 
   if (loading) {
     return (
@@ -52,6 +57,7 @@ const AppContent: React.FC = React.memo(() => {
   return (
     <Routes>
       {!user ? (
+        // Public routes for logged-out users
         <>
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/login" element={<Login />} />
@@ -59,13 +65,19 @@ const AppContent: React.FC = React.memo(() => {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="*" element={<Navigate to="/onboarding" replace />} />
         </>
-      ) : (
+      ) : activeRole ? (
+        // Private routes for users with an active role
         <>
-          <Route path="/role-selection" element={<RoleSelection />} />
           <Route path="/home" element={<ClientHome />} />
-          <Route path="/driver/home" element={<DriverHome />} />
-          <Route path="/safety" element={<SafetyInfo />} />
+          <Route path="/driver/map" element={<DriverMap />} />
+          <Route path="/driver/onboarding/type-selection" element={<DriverTypeSelection />} />
+          <Route path="/driver/onboarding/car-registration" element={<CarRegistration />} />
+          <Route path="/driver/onboarding/scooter-registration" element={<ScooterRegistration />} />
+          <Route path="/driver/vehicles" element={<VehicleSelection />} />
           <Route path="/profile" element={<Profile />} />
+          
+          {/* Restored Routes */}
+          <Route path="/safety" element={<SafetyInfo />} />
           <Route path="/ride/details" element={<RideDetails />} />
           <Route path="/ride/searching" element={<SearchingRide />} />
           <Route path="/ride/driver-found" element={<DriverFound />} />
@@ -80,23 +92,30 @@ const AppContent: React.FC = React.memo(() => {
           <Route path="/help-center" element={<HelpCenter />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+          <Route path="/driver/home" element={<DriverHome />} />
+
           <Route
             path="*"
             element={
-              user.role === 'driver' ? (
-                <Navigate to="/driver/home" replace />
-              ) : user.role === 'user' ? (
+              activeRole === 'driver' ? (
+                // Always go to type-selection first for a driver
+                <Navigate to="/driver/onboarding/type-selection" replace />
+              ) : ( // activeRole === 'client'
                 <Navigate to="/home" replace />
-              ) : (
-                <Navigate to="/role-selection" replace />
               )
             }
           />
         </>
+      ) : (
+        // Routes for logged-in users who need to choose a role
+        <>
+          <Route path="/role-selection" element={<RoleSelection />} />
+          <Route path="*" element={<Navigate to="/role-selection" replace />} />
+        </>
       )}
     </Routes>
   );
-});
+};
 
 function App() {
   return (

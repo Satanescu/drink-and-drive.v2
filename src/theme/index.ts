@@ -3,6 +3,8 @@ export const theme = {
     primary: '#FF8A00',
     primaryDark: '#E67A00',
     primaryLight: '#FFA033',
+    primaryAction: '#FF8A00', // Changed from #276EF1 to match primary orange
+    financial: '#05A357', // Emerald Green
     background: '#0B0B0F',
     surface: '#1A1A1F',
     surfaceLight: '#2A2A2F',
@@ -73,6 +75,8 @@ export const theme = {
     md: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
     lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
     xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+    elevation4: '0 2px 4px -1px rgba(0,0,0,0.2), 0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12)',
+    elevation8: '0 5px 5px -3px rgba(0,0,0,0.2), 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12)',
   },
   transitions: {
     fast: '150ms ease-in-out',
