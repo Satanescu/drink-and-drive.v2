@@ -9,6 +9,7 @@ interface AddressInputProps {
   onSelect: (address: string, coords: Location) => void;
   placeholder: string;
   userLocation: Location | null;
+  bbox: number[] | null;
 }
 
 export const AddressInput: React.FC<AddressInputProps> = ({
@@ -17,19 +18,21 @@ export const AddressInput: React.FC<AddressInputProps> = ({
   onSelect,
   placeholder,
   userLocation,
+  bbox,
 }) => {
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (value) {
-        getSuggestions(value, userLocation).then(setSuggestions);
+      if (value && isTyping) {
+        getSuggestions(value, userLocation, bbox).then(setSuggestions);
       } else {
         setSuggestions([]);
       }
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [value, userLocation]);
+  }, [value, userLocation, bbox, isTyping]);
 
   const handleSelect = (suggestion: any) => {
     const address = suggestion.place_name;
@@ -37,6 +40,12 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     onChange(address);
     onSelect(address, { lat, lng });
     setSuggestions([]);
+    setIsTyping(false);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(e.target.value);
+    setIsTyping(true);
   };
 
   const inputStyles: React.CSSProperties = {
@@ -82,7 +91,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
       <input
         type="text"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={handleChange}
         placeholder={placeholder}
         style={inputStyles}
       />

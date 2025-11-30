@@ -2,21 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../theme';
 import { Button, Map, AddressInput } from '../components';
-import { useAuth } from '../context/auth.hooks';
-import { MapPin, Home, Briefcase, Clock, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { MapPin, Home, Briefcase, Clock, AlertCircle, User } from 'lucide-react';
 import { ServiceType, Location } from '../types';
 import { geocode, reverseGeocode } from '../lib/mapbox';
 import { ViewState } from 'react-map-gl';
+import { useLanguage } from '../context/LanguageContext';
 
 export const ClientHome: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [pickupAddress, setPickupAddress] = useState('');
   const [destinationAddress, setDestinationAddress] = useState('');
   const [pickupCoords, setPickupCoords] = useState<Location | null>(null);
   const [destinationCoords, setDestinationCoords] = useState<Location | null>(null);
   const [serviceType, setServiceType] = useState<ServiceType>('standard');
   const [userLocation, setUserLocation] = useState<Location | null>(null);
+  const [bbox, setBbox] = useState<number[] | null>(null);
   const [viewState, setViewState] = useState<Partial<ViewState>>({
     latitude: 45.7606, // Timisoara
     longitude: 21.2267,
@@ -32,7 +35,14 @@ export const ClientHome: React.FC = () => {
           setUserLocation(location);
           setViewState((vs) => ({ ...vs, latitude, longitude, zoom: 14 }));
           setPickupCoords(location);
-          reverseGeocode(location).then(setPickupAddress);
+          reverseGeocode(location).then((data) => {
+            if (data) {
+              const city = data.context.find((c: any) => c.id.startsWith('place'));
+              if (city && city.bbox) {
+                setBbox(city.bbox);
+              }
+            }
+          });
         },
         (error) => {
           console.error('Error getting user location:', error);
@@ -40,6 +50,22 @@ export const ClientHome: React.FC = () => {
       );
     }
   }, []);
+
+  const handleMarkerDragEnd = (e: any, type: 'pickup' | 'destination') => {
+    const { lng, lat } = e.lngLat;
+    const location = { lng, lat };
+    reverseGeocode(location).then((data) => {
+      if (data) {
+        if (type === 'pickup') {
+          setPickupAddress(data.place_name);
+          setPickupCoords(location);
+        } else {
+          setDestinationAddress(data.place_name);
+          setDestinationCoords(location);
+        }
+      }
+    });
+  };
 
   if (!user) {
     return null;
@@ -58,6 +84,9 @@ export const ClientHome: React.FC = () => {
     backgroundColor: theme.colors.surfaceLight,
     padding: theme.spacing.xl,
     paddingTop: theme.spacing.lg,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   };
 
   const greetingStyles: React.CSSProperties = {
@@ -130,7 +159,7 @@ export const ClientHome: React.FC = () => {
 
   const handleContinue = () => {
     if (!pickupAddress || !destinationAddress) {
-      alert('Alege o adresă de preluare și una de destinație');
+      alert(t('chooseAddresses'));
       return;
     }
 
@@ -154,18 +183,23 @@ export const ClientHome: React.FC = () => {
   return (
     <div style={containerStyles}>
       <div style={headerStyles}>
-        <div style={greetingStyles}>Bună, {firstName}!</div>
+        <div style={greetingStyles}>{t('hello')}, {firstName}!</div>
+        <Button onClick={() => navigate('/profile')} variant="ghost" size="icon">
+          <User />
+        </Button>
+      </div>
 
+      <div style={{ padding: `0 ${theme.spacing.xl}` }}>
         <div style={reminderStyles}>
           <AlertCircle size={20} color={theme.colors.warning} />
           <p style={reminderTextStyles}>
-            Nu conduce după ce ai consumat alcool. Alege o cursă sigură cu Drink&Drive.
+            {t('safetyReminder')}
           </p>
         </div>
       </div>
 
       <div style={contentStyles}>
-        <h3 style={sectionTitleStyles}>Unde mergem?</h3>
+        <h3 style={sectionTitleStyles}>{t('whereTo')}</h3>
 
         <AddressInput
           value={pickupAddress}
@@ -175,8 +209,9 @@ export const ClientHome: React.FC = () => {
             setPickupCoords(coords);
             setViewState((vs) => ({ ...vs, latitude: coords.lat, longitude: coords.lng, zoom: 14 }));
           }}
-          placeholder="Introdu adresa de preluare"
+          placeholder={t('pickupAddress')}
           userLocation={userLocation}
+          bbox={bbox}
         />
 
         <AddressInput
@@ -187,8 +222,9 @@ export const ClientHome: React.FC = () => {
             setDestinationCoords(coords);
             setViewState((vs) => ({ ...vs, latitude: coords.lat, longitude: coords.lng, zoom: 14 }));
           }}
-          placeholder="Introdu adresa de destinație"
+          placeholder={t('destinationAddress')}
           userLocation={userLocation}
+          bbox={bbox}
         />
 
         <div style={mapContainerStyles}>
@@ -197,10 +233,11 @@ export const ClientHome: React.FC = () => {
             markers={markers}
             viewState={viewState}
             onViewStateChange={(e) => setViewState(e.viewState)}
+            onMarkerDragEnd={handleMarkerDragEnd}
           />
         </div>
 
-        <h3 style={sectionTitleStyles}>Tipul de serviciu</h3>
+        <h3 style={sectionTitleStyles}>{t('serviceType')}</h3>
 
         <div style={serviceCardsContainerStyles}>
           <div
@@ -208,7 +245,7 @@ export const ClientHome: React.FC = () => {
             onClick={() => handleServiceSelect('standard')}
           >
             <MapPin size={32} color={serviceType === 'standard' ? '#FFF' : theme.colors.primary} />
-            <div style={serviceCardTitleStyles(serviceType === 'standard')}>Cursă standard</div>
+            <div style={serviceCardTitleStyles(serviceType === 'standard')}>{t('standardRide')}</div>
             <div
               style={{
                 fontSize: theme.typography.fontSize.xs,
@@ -216,7 +253,7 @@ export const ClientHome: React.FC = () => {
                 marginTop: theme.spacing.sm,
               }}
             >
-              Șofer cu mașina
+              {t('driverWithCar')}
             </div>
           </div>
 
@@ -225,7 +262,7 @@ export const ClientHome: React.FC = () => {
             onClick={() => handleServiceSelect('own-car')}
           >
             <MapPin size={32} color={serviceType === 'own-car' ? '#FFF' : theme.colors.primary} />
-            <div style={serviceCardTitleStyles(serviceType === 'own-car')}>Mașina mea</div>
+            <div style={serviceCardTitleStyles(serviceType === 'own-car')}>{t('myCar')}</div>
             <div
               style={{
                 fontSize: theme.typography.fontSize.xs,
@@ -233,7 +270,7 @@ export const ClientHome: React.FC = () => {
                 marginTop: theme.spacing.sm,
               }}
             >
-              Șoferul o duce
+              {t('driverTakesIt')}
             </div>
           </div>
         </div>
@@ -244,7 +281,7 @@ export const ClientHome: React.FC = () => {
           size="lg"
           fullWidth
         >
-          {pickupAddress && destinationAddress ? 'Continuă către detalii cursă' : 'Alege adresele'}
+          {pickupAddress && destinationAddress ? t('continueToRideDetails') : t('chooseAddresses')}
         </Button>
 
         <Button
@@ -254,7 +291,7 @@ export const ClientHome: React.FC = () => {
           fullWidth
           style={{ marginTop: theme.spacing.lg }}
         >
-          Informații de siguranță
+          {t('safetyInfo')}
         </Button>
       </div>
     </div>

@@ -1,44 +1,67 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../theme';
-import { Button, Card } from '../components';
-import { useAuth } from '../context/auth.hooks';
-import { ArrowLeft, LogOut, User } from 'lucide-react';
+import {
+  ChevronRight,
+  CreditCard,
+  Heart,
+  HelpCircle,
+  Languages,
+  LogOut,
+  MapPin,
+  Shield,
+  Star,
+  Bell,
+  FileText,
+  User,
+  ArrowLeft,
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export const Profile: React.FC = () => {
   const navigate = useNavigate();
-  const { user, logout, updateUser } = useAuth();
-  const [isDriver, setIsDriver] = useState(user?.role === 'driver');
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-
-  if (!user) {
-    return null;
-  }
+  const { user, logout } = useAuth();
+  const { t } = useLanguage();
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
 
-  const handleRoleChange = async () => {
-    const newRole = isDriver ? 'client' : 'driver';
-    await updateUser({ role: newRole as UserRole });
-    setIsDriver(!isDriver);
+  if (!user) {
+    return null;
+  }
+
+  const getInitials = (name: string) => {
+    const names = name.split(' ');
+    const initials = names.map((n) => n[0]).join('');
+    return initials.toUpperCase();
   };
 
   const containerStyles: React.CSSProperties = {
     minHeight: '100vh',
     backgroundColor: theme.colors.background,
-    padding: theme.spacing.xl,
+    color: theme.colors.text.primary,
     fontFamily: theme.typography.fontFamily.primary,
-    paddingBottom: theme.spacing.xl,
+  };
+
+  const headerCardStyles: React.CSSProperties = {
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.xl,
+    paddingTop: theme.spacing.xxl,
+    textAlign: 'center',
+    borderBottomLeftRadius: theme.borderRadius.xxl,
+    borderBottomRightRadius: theme.borderRadius.xxl,
   };
 
   const headerStyles: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.xl,
+    justifyContent: 'space-between',
+    padding: theme.spacing.xl,
+    paddingTop: theme.spacing.lg,
+    backgroundColor: theme.colors.surface,
   };
 
   const backButtonStyles: React.CSSProperties = {
@@ -55,81 +78,96 @@ export const Profile: React.FC = () => {
     fontSize: theme.typography.fontSize['2xl'],
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.text.primary,
-    flex: 1,
+    flexGrow: 1,
+    textAlign: 'center',
+    marginRight: '24px', // To balance the back button
   };
 
-  const profileSectionStyles: React.CSSProperties = {
-    marginBottom: theme.spacing.xl,
-  };
-
-  const profileAvatarStyles: React.CSSProperties = {
+  const avatarStyles: React.CSSProperties = {
     width: '80px',
     height: '80px',
     borderRadius: '50%',
     backgroundColor: theme.colors.primary,
+    color: theme.colors.text.primary,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: theme.spacing.md,
+    fontSize: theme.typography.fontSize['2xl'],
+    fontWeight: theme.typography.fontWeight.bold,
+    margin: '0 auto',
+    marginBottom: theme.spacing.lg,
   };
 
   const userNameStyles: React.CSSProperties = {
     fontSize: theme.typography.fontSize.xl,
     fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.text.primary,
     marginBottom: theme.spacing.sm,
   };
 
-  const userDetailsStyles: React.CSSProperties = {
+  const userEmailStyles: React.CSSProperties = {
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.xl,
+  };
+
+  const statsContainerStyles: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-around',
+    padding: `${theme.spacing.lg} ${theme.spacing.xl}`,
+  };
+
+  const statItemStyles: React.CSSProperties = {
+    textAlign: 'center',
+  };
+
+  const statValueStyles: React.CSSProperties = {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: 'bold',
+  };
+
+  const statLabelStyles: React.CSSProperties = {
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.xs,
+  };
+
+  const sectionStyles: React.CSSProperties = {
+    padding: `0 ${theme.spacing.xl}`,
+    marginTop: theme.spacing.lg,
   };
 
   const sectionTitleStyles: React.CSSProperties = {
     fontSize: theme.typography.fontSize.lg,
     fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.md,
   };
 
-  const toggleContainerStyles: React.CSSProperties = {
+  const rowStyles: React.CSSProperties = {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    marginBottom: theme.spacing.md,
-  };
-
-  const toggleLabelStyles: React.CSSProperties = {
-    color: theme.colors.text.primary,
-    fontWeight: theme.typography.fontWeight.medium,
-  };
-
-  const toggleSwitchStyles = (active: boolean): React.CSSProperties => ({
-    width: '60px',
-    height: '32px',
-    backgroundColor: active ? theme.colors.primary : theme.colors.border.medium,
-    borderRadius: theme.borderRadius.full,
+    padding: `${theme.spacing.md} 0`,
+    borderBottom: `1px solid ${theme.colors.border.light}`,
     cursor: 'pointer',
-    transition: theme.transitions.fast,
-    border: 'none',
-    position: 'relative',
-    padding: 0,
-    display: 'flex',
-    alignItems: 'center',
-    paddingLeft: active ? '32px' : '4px',
-  });
+  };
 
-  const toggleCircleStyles: React.CSSProperties = {
-    width: '24px',
-    height: '24px',
-    backgroundColor: theme.colors.text.primary,
-    borderRadius: '50%',
-    transition: theme.transitions.fast,
+  const rowIconStyles: React.CSSProperties = {
+    marginRight: theme.spacing.lg,
+    color: theme.colors.primary,
+  };
+
+  const rowLabelStyles: React.CSSProperties = {
+    flex: 1,
+    fontSize: theme.typography.fontSize.base,
+  };
+
+  const logoutButtonStyles: React.CSSProperties = {
+    backgroundColor: theme.colors.error,
+    color: theme.colors.text.primary,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    textAlign: 'center',
+    cursor: 'pointer',
+    margin: theme.spacing.xl,
+    fontWeight: theme.typography.fontWeight.bold,
   };
 
   return (
@@ -138,75 +176,86 @@ export const Profile: React.FC = () => {
         <button style={backButtonStyles} onClick={() => navigate('/home')}>
           <ArrowLeft size={24} />
         </button>
-        <h1 style={titleStyles}>Profil</h1>
+        <h1 style={titleStyles}>{t('profile')}</h1>
       </div>
 
-      <div style={profileSectionStyles}>
-        <div style={profileAvatarStyles}>
-          <User size={40} color={theme.colors.text.primary} />
-        </div>
-        <h2 style={userNameStyles}>{user.fullName}</h2>
-        <div style={userDetailsStyles}>Email: {user.email}</div>
-        <div style={userDetailsStyles}>Telefon: {user.phone}</div>
-        {user.rating && <div style={userDetailsStyles}>Rating: {user.rating} ★</div>}
+      <div style={{ ...headerCardStyles, paddingTop: theme.spacing.lg }}>
+        <div style={avatarStyles}>{getInitials(user.fullName)}</div>
+        <div style={userNameStyles}>{user.fullName}</div>
+        <div style={userEmailStyles}>{user.email}</div>
       </div>
 
-      <h3 style={sectionTitleStyles}>Mod Aplicație</h3>
-
-      <Card padding="md" style={{ marginBottom: theme.spacing.lg }}>
-        <div style={toggleContainerStyles}>
-          <span style={toggleLabelStyles}>
-            {isDriver ? 'Mod șofer' : 'Mod client'}
-          </span>
-          <button
-            style={toggleSwitchStyles(isDriver)}
-            onClick={handleRoleChange}
-          >
-            <div style={toggleCircleStyles} />
-          </button>
+      <div style={statsContainerStyles}>
+        <div style={statItemStyles}>
+          <div style={statValueStyles}>0</div>
+          <div style={statLabelStyles}>{t('totalRides')}</div>
         </div>
-        <p style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
-          {isDriver
-            ? 'Ești conectat ca șofer. Comută pentru a primi curse.'
-            : 'Ești conectat ca pasager. Comută pentru a oferi curse.'}
-        </p>
-      </Card>
-
-      <h3 style={sectionTitleStyles}>Notificări</h3>
-
-      <Card padding="md" style={{ marginBottom: theme.spacing.lg }}>
-        <div style={toggleContainerStyles}>
-          <span style={toggleLabelStyles}>Notificări push</span>
-          <button
-            style={toggleSwitchStyles(notificationsEnabled)}
-            onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-          >
-            <div style={toggleCircleStyles} />
-          </button>
+        <div style={statItemStyles}>
+          <div style={statValueStyles}>5.0</div>
+          <div style={statLabelStyles}>{t('rating')}</div>
         </div>
-      </Card>
+        <div style={statItemStyles}>
+          <div style={statValueStyles}>$0</div>
+          <div style={statLabelStyles}>{t('totalSpent')}</div>
+        </div>
+      </div>
 
-      <h3 style={sectionTitleStyles}>Acțiuni</h3>
+      <div style={sectionStyles}>
+        <h2 style={sectionTitleStyles}>{t('account')}</h2>
+        <div style={rowStyles} onClick={() => navigate('/payment-methods')}>
+          <CreditCard size={20} style={rowIconStyles} />
+          <div style={rowLabelStyles}>{t('paymentMethods')}</div>
+          <ChevronRight size={20} color={theme.colors.text.secondary} />
+        </div>
+        <div style={rowStyles} onClick={() => navigate('/saved-locations')}>
+          <MapPin size={20} style={rowIconStyles} />
+          <div style={rowLabelStyles}>{t('savedLocations')}</div>
+          <ChevronRight size={20} color={theme.colors.text.secondary} />
+        </div>
+        <div style={rowStyles} onClick={() => navigate('/emergency-contacts')}>
+          <Heart size={20} style={rowIconStyles} />
+          <div style={rowLabelStyles}>{t('emergencyContacts')}</div>
+          <ChevronRight size={20} color={theme.colors.text.secondary} />
+        </div>
+      </div>
 
-      <Button
-        onClick={() => navigate('/safety')}
-        variant="secondary"
-        size="md"
-        fullWidth
-        style={{ marginBottom: theme.spacing.md }}
-      >
-        Informații de Siguranță
-      </Button>
+      <div style={sectionStyles}>
+        <h2 style={sectionTitleStyles}>{t('settings')}</h2>
+        <div style={rowStyles} onClick={() => navigate('/notifications')}>
+          <Bell size={20} style={rowIconStyles} />
+          <div style={rowLabelStyles}>{t('notifications')}</div>
+          <ChevronRight size={20} color={theme.colors.text.secondary} />
+        </div>
+        <div style={rowStyles} onClick={() => navigate('/language')}>
+          <Languages size={20} style={rowIconStyles} />
+          <div style={rowLabelStyles}>{t('language')}</div>
+          <ChevronRight size={20} color={theme.colors.text.secondary} />
+        </div>
+      </div>
 
-      <Button
-        onClick={handleLogout}
-        variant="danger"
-        size="md"
-        fullWidth
-        icon={<LogOut size={18} />}
-      >
-        Deconectare
-      </Button>
+      <div style={sectionStyles}>
+        <h2 style={sectionTitleStyles}>{t('support')}</h2>
+        <div style={rowStyles} onClick={() => navigate('/help-center')}>
+          <HelpCircle size={20} style={rowIconStyles} />
+          <div style={rowLabelStyles}>{t('helpCenter')}</div>
+          <ChevronRight size={20} color={theme.colors.text.secondary} />
+        </div>
+        <div style={rowStyles} onClick={() => navigate('/privacy-policy')}>
+          <Shield size={20} style={rowIconStyles} />
+          <div style={rowLabelStyles}>{t('privacyPolicy')}</div>
+          <ChevronRight size={20} color={theme.colors.text.secondary} />
+        </div>
+        <div style={rowStyles} onClick={() => navigate('/terms-and-conditions')}>
+          <FileText size={20} style={rowIconStyles} />
+          <div style={rowLabelStyles}>{t('termsAndConditions')}</div>
+          <ChevronRight size={20} color={theme.colors.text.secondary} />
+        </div>
+      </div>
+
+      <div style={logoutButtonStyles} onClick={handleLogout}>
+        <LogOut size={20} style={{ marginRight: theme.spacing.sm, verticalAlign: 'middle' }} />
+        {t('logout')}
+      </div>
     </div>
   );
 };

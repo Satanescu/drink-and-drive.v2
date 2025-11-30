@@ -12,6 +12,7 @@ interface MapProps {
   height?: string;
   viewState: Partial<ViewState>;
   onViewStateChange: (e: { viewState: ViewState }) => void;
+  onMarkerDragEnd: (e: any, type: 'pickup' | 'destination') => void;
 }
 
 export const Map: React.FC<MapProps> = ({
@@ -19,11 +20,18 @@ export const Map: React.FC<MapProps> = ({
   height = '400px',
   viewState,
   onViewStateChange,
+  onMarkerDragEnd,
 }) => {
   const mapRef = React.useRef<MapRef>(null);
 
   const otherMarkers = markers.map((marker, index) => (
-    <Marker key={index} longitude={marker.location.lng} latitude={marker.location.lat}>
+    <Marker
+      key={index}
+      longitude={marker.location.lng}
+      latitude={marker.location.lat}
+      draggable={true}
+      onDragEnd={(e) => onMarkerDragEnd(e, marker.type as 'pickup' | 'destination')}
+    >
       <div
         style={{
           background:
@@ -55,7 +63,7 @@ export const Map: React.FC<MapProps> = ({
         ref={mapRef}
         {...viewState}
         style={{ width: '100%', height: '100%' }}
-        mapStyle="mapbox://styles/mapbox/streets-v11"
+        mapStyle="mapbox://styles/mapbox/outdoors-v12"
         mapboxAccessToken={MAPBOX_TOKEN}
         onMove={(e) => onViewStateChange(e)}
       >

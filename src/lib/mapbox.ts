@@ -26,7 +26,7 @@ export const geocode = async (address: string): Promise<Location | null> => {
   return null;
 };
 
-export const reverseGeocode = async (location: Location): Promise<string> => {
+export const reverseGeocode = async (location: Location): Promise<any | null> => {
   try {
     const response = await fetch(
       `https://api.mapbox.com/geocoding/v5/mapbox.places/${location.lng},${location.lat}.json?access_token=${MAPBOX_TOKEN}`
@@ -34,16 +34,20 @@ export const reverseGeocode = async (location: Location): Promise<string> => {
     const data = await response.json();
 
     if (data.features && data.features.length > 0) {
-      return data.features[0].place_name;
+      return data.features[0];
     }
   } catch (error) {
     console.error('Error during reverse geocoding:', error);
   }
 
-  return 'Unknown location';
+  return null;
 };
 
-export const getSuggestions = async (query: string, proximity: Location | null): Promise<any[]> => {
+export const getSuggestions = async (
+  query: string,
+  proximity: Location | null,
+  bbox: number[] | null
+): Promise<any[]> => {
   if (!query) {
     return [];
   }
@@ -54,6 +58,10 @@ export const getSuggestions = async (query: string, proximity: Location | null):
 
   if (proximity) {
     url += `&proximity=${proximity.lng},${proximity.lat}`;
+  }
+
+  if (bbox) {
+    url += `&bbox=${bbox.join(',')}`;
   }
 
   try {
