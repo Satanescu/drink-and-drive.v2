@@ -48,107 +48,105 @@ export const authAPI = {
     return { user, token: data.session.access_token };
   },
 
-    async register(data: {
+            async register(data: {
 
-      fullName: string;
+              fullName: string;
 
-      email: string;
+              email: string;
 
-      phone: string;
+              phone: string;
 
-      password: string;
+              password: string;
 
-    }): Promise<{ user: User; token: string | null; message?: string }> {
+            }): Promise<{ user: User; token: string | null; message?: string }> {
 
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+              console.log('Attempting to sign up with:', data.email);
 
-        email: data.email,
+              
 
-        password: data.password,
+              const { data: authData, error: authError } = await supabase.auth.signUp({
 
-      });
+                email: data.email,
 
-  
+                password: data.password,
 
-      if (authError) {
+                options: {
 
-        throw new Error(authError.message);
+                  data: {
 
-      }
+                    full_name: data.fullName,
 
-  
+                    phone: data.phone,
 
-      if (!authData.user) {
+                    role: 'client',
 
-        throw new Error('Registration failed: No user data');
+                  },
 
-      }
+                },
 
-  
+              });
 
-      const { error: profileError } = await supabase.from('profiles').insert({
+        
 
-        id: authData.user.id,
+              if (authError) {
 
-        full_name: data.fullName,
+                console.error('Supabase signUp error:', JSON.stringify(authError, null, 2));
 
-        phone: data.phone,
+                throw new Error(`Auth Error: ${authError.message}`);
 
-        role: 'client', // Default role for new registrations
+              }
 
-        created_at: new Date().toISOString(),
+        
 
-      });
+              if (!authData.user) {
 
-  
+                console.warn('Supabase signUp returned no user data, but no error either.');
 
-      if (profileError) {
+                throw new Error('Registration failed: No user data returned from Supabase.');
 
-        throw new Error(profileError.message);
+              }
 
-      }
+              
 
-  
+              console.log('Sign up successful for user:', authData.user.id);
 
-      const user: User = {
+        
 
-        id: authData.user.id,
+              const user: User = {
 
-        fullName: data.fullName,
+                id: authData.user.id,
 
-        email: authData.user.email || '',
+                fullName: data.fullName,
 
-        phone: data.phone,
+                email: authData.user.email || '',
 
-        role: 'client',
+                phone: data.phone,
 
-        profilePhoto: undefined,
+                role: 'client',
 
-        rating: undefined,
+                createdAt: new Date(),
 
-        createdAt: new Date(),
+              };
 
-      };
+        
 
-  
+              if (!authData.session) {
 
-      if (!authData.session) {
+                return { user, token: null, message: 'Please check your email to confirm your registration.' };
 
-        return { user, token: null, message: 'Please check your email to confirm your registration.' };
+              }
 
-      }
+        
 
-  
+              localStorage.setItem('auth_token', authData.session.access_token);
 
-      localStorage.setItem('auth_token', authData.session.access_token);
+              localStorage.setItem('user', JSON.stringify(user));
 
-      localStorage.setItem('user', JSON.stringify(user));
+        
 
-  
+              return { user, token: authData.session.access_token };
 
-      return { user, token: authData.session.access_token };
-
-    },
+            },
 
   async logout(): Promise<void> {
     const { error } = await supabase.auth.signOut();

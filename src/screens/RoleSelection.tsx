@@ -9,7 +9,7 @@ export const RoleSelection: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const handleRoleSelection = async (role: 'user' | 'driver') => {
+  const handleRoleSelection = async (role: 'client' | 'driver') => {
     if (user) {
       const { error } = await supabase
         .from('profiles')
@@ -19,6 +19,8 @@ export const RoleSelection: React.FC = () => {
       if (error) {
         console.error('Error updating role:', error);
       } else {
+        // After role is set, update user in context
+        // You might want to refresh the user data here
         if (role === 'driver') {
           navigate('/driver/home');
         } else {
@@ -54,7 +56,7 @@ export const RoleSelection: React.FC = () => {
     <div style={containerStyles}>
       <h1 style={titleStyles}>Are you a...</h1>
       <div style={buttonContainerStyles}>
-        <Button onClick={() => handleRoleSelection('user')} variant="primary" size="lg">
+        <Button onClick={() => handleRoleSelection('client')} variant="primary" size="lg">
           Passenger
         </Button>
         <Button onClick={() => handleRoleSelection('driver')} variant="secondary" size="lg">

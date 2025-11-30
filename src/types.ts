@@ -2,7 +2,7 @@ export interface User {
   id: string;
   email: string;
   fullName: string;
-  role: 'user' | 'driver';
+  role: 'client' | 'driver';
 }
 
 export interface Location {

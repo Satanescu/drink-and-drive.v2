@@ -1,6 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../lib/supabase';
-import { Session } from '@supabase/supabase-js';
 import { User } from '../types';
 
 interface AuthContextType {
@@ -15,28 +14,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper: Tries to fetch profile 3 times before giving up
+  const fetchProfileWithRetry = async (userId: string, retries = 3, delay = 500) => {
+    for (let i = 0; i < retries; i++) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle(); // Use maybeSingle to avoid errors on empty results
+
+      if (data) {
+        return data; // Found it!
+      }
+
+      // If error (other than not found), log it
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+      }
+
+      // Wait before trying again
+      console.log(`Profile not found yet. Retrying in ${delay}ms... (${i + 1}/${retries})`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+    return null; // Gave up
+  };
+
   useEffect(() => {
-    const fetchSession = async () => {
-      console.log("Fetching initial session...");
+    // 1. INITIAL SESSION CHECK
+    const initSession = async () => {
       try {
         setLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
-        console.log("Initial session:", session);
 
         if (session) {
-          console.log("User is logged in, fetching profile...");
-          const { data: profiles, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id);
-
-          if (error) {
-            console.error('Error fetching profile:', error);
-            throw error;
-          }
-
-          const profile = profiles && profiles[0];
-          console.log("Initial profile:", profile);
+          console.log("Found session, looking for profile...");
+          const profile = await fetchProfileWithRetry(session.user.id);
 
           if (profile) {
             setUser({
@@ -46,64 +58,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: profile.role,
             });
           } else {
-            console.warn("User is logged in but profile data is missing.");
+            console.warn("Profile missing after retries. Clearing session.");
             await supabase.auth.signOut();
             setUser(null);
           }
-        } else {
-          console.log("No initial session found.");
-          setUser(null);
         }
       } catch (error) {
-        console.error("An error occurred fetching the session:", error);
-        setUser(null);
+        console.error("Session init error:", error);
       } finally {
-        console.log("Finished fetching initial session, loading is false.");
         setLoading(false);
       }
     };
 
-    fetchSession();
+    initSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log("Auth state changed:", _event, session);
-      try {
-        if (session) {
-          console.log("Auth change: User is logged in, fetching profile...");
-          const { data: profiles, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id);
-
-          if (error) {
-            console.error('Error fetching profile on auth change:', error);
-            throw error;
-          }
+    // 2. AUTH STATE LISTENER
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`Auth event: ${event}`);
+      
+      if (session) {
+        // If we already have the user loaded, don't re-fetch
+        setUser((currentUser) => {
+          if (currentUser?.id === session.user.id) return currentUser;
           
-          const profile = profiles && profiles[0];
-          console.log("Auth change profile:", profile);
+          // Otherwise, fetch profile (async inside setter is tricky, so we do it outside)
+          return currentUser; 
+        });
 
-          if (profile) {
+        // Perform the fetch
+        const profile = await fetchProfileWithRetry(session.user.id);
+        
+        if (profile) {
             setUser({
               id: session.user.id,
               email: session.user.email || '',
               fullName: profile.full_name || 'No Name',
               role: profile.role,
             });
-          } else {
-            console.warn("Auth change: User is logged in but profile data is missing.");
-            await supabase.auth.signOut();
-            setUser(null);
-          }
         } else {
-          console.log("Auth change: No session found.");
-          setUser(null);
+             // Only sign out if we really can't find the profile after 1.5 seconds
+             // and we are ensuring it's not a false negative
+             console.warn("User signed up, but profile creation is lagging or failed.");
+             // Optional: Don't sign out immediately, let them see a "Setup incomplete" screen?
+             // For now, keep your logic but with the retry safety:
+             await supabase.auth.signOut();
+             setUser(null);
         }
-      } catch (error) {
-        console.error("An error occurred in onAuthStateChange:", error);
+
+      } else {
         setUser(null);
-      } finally {
-        console.log("Finished handling auth state change, loading is false.");
         setLoading(false);
       }
     });

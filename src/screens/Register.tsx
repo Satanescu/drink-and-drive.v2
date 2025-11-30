@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { authAPI } from '../api/auth';
 import { theme } from '../theme';
 import { Button, Input } from '../components';
 import { useAuth } from '../context/AuthContext';
@@ -22,33 +22,17 @@ export const Register = () => {
     setError('');
 
     try {
-      const { data, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
+      const { user, token } = await authAPI.register({
+        fullName: fullName,
+        email: email,
+        phone: phone,
+        password: password,
       });
 
-      if (authError) {
-        throw authError;
-      }
-
-      if (data.user) {
-        // Invoke the Edge Function to create the profile
-        const { error: functionError } = await supabase.functions.invoke('create-user-profile', {
-          body: {
-            user_id: data.user.id,
-            full_name: fullName,
-            phone: phone,
-          },
-        });
-
-        if (functionError) {
-          throw functionError;
-        }
-
-        alert('Registration successful! Please check your email to verify your account.');
-        navigate('/login');
-      }
+      // Success! Redirect to dashboard
+      navigate('/dashboard');
     } catch (err: any) {
+      console.error("Full registration error object:", err);
       setError(err.message);
     } finally {
       setLoading(false);
