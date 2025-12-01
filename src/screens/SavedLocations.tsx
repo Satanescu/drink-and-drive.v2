@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { theme } from '../theme';
 import { ArrowLeft, MapPin, MoreVertical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Button, AddressInput, Map } from '../components';
+import { Button, AddressInput } from '../components';
 import { Location } from '../types';
-import { ViewState } from 'react-map-gl';
 import { useLanguage } from '../context/LanguageContext';
 
 interface SavedLocation {
@@ -25,11 +24,6 @@ export const SavedLocations: React.FC = () => {
   const [newLocationName, setNewLocationName] = useState('');
   const [newLocationAddress, setNewLocationAddress] = useState('');
   const [newLocationCoords, setNewLocationCoords] = useState<Location | null>(null);
-  const [viewState, setViewState] = useState<Partial<ViewState>>({
-    latitude: 45.7606,
-    longitude: 21.2267,
-    zoom: 12,
-  });
 
   const handleAddLocation = () => {
     if (newLocationName && newLocationAddress && newLocationCoords) {
@@ -114,11 +108,8 @@ export const SavedLocations: React.FC = () => {
             onSelect={(address, coords) => {
               setNewLocationAddress(address);
               setNewLocationCoords(coords);
-              setViewState((vs) => ({ ...vs, latitude: coords.lat, longitude: coords.lng, zoom: 14 }));
             }}
             placeholder="Caută adresă"
-            userLocation={null}
-            bbox={null}
           />
           <input
             type="text"
@@ -137,15 +128,7 @@ export const SavedLocations: React.FC = () => {
               marginBottom: theme.spacing.lg,
             }}
           />
-          <div style={{ height: '200px', marginBottom: theme.spacing.lg }}>
-            <Map
-              height="200px"
-              viewState={viewState}
-              onViewStateChange={(e) => setViewState(e.viewState)}
-              markers={newLocationCoords ? [{ location: newLocationCoords, type: 'pickup' }] : []}
-              onMarkerDragEnd={() => {}}
-            />
-          </div>
+          <div style={{ height: '200px', marginBottom: theme.spacing.lg, backgroundColor: '#ccc' }}></div>
           <Button onClick={handleAddLocation} variant="primary" fullWidth>
             Adaugă Locație
           </Button>

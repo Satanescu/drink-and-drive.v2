@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { theme } from '../theme';
-import { getSuggestions } from '../lib/mapbox';
 import { Location } from '../types';
+import { usePlacesAutocomplete } from '../hooks/usePlacesAutocomplete';
 
 interface AddressInputProps {
   value: string;
@@ -9,7 +9,7 @@ interface AddressInputProps {
   onSelect: (address: string, coords: Location) => void;
   placeholder: string;
   userLocation: Location | null;
-  bbox: number[] | null;
+  disabled?: boolean;
 }
 
 export const AddressInput: React.FC<AddressInputProps> = ({
@@ -18,34 +18,29 @@ export const AddressInput: React.FC<AddressInputProps> = ({
   onSelect,
   placeholder,
   userLocation,
-  bbox,
+  disabled = false,
 }) => {
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const { getPlacePredictions, predictions, getPlaceDetails, setPredictions } = usePlacesAutocomplete();
   const [isTyping, setIsTyping] = useState(false);
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (value && isTyping) {
-        getSuggestions(value, userLocation, bbox).then(setSuggestions);
-      } else {
-        setSuggestions([]);
-      }
-    }, 300);
-    return () => clearTimeout(timeoutId);
-  }, [value, userLocation, bbox, isTyping]);
-
-  const handleSelect = (suggestion: any) => {
-    const address = suggestion.place_name;
-    const [lng, lat] = suggestion.center;
-    onChange(address);
-    onSelect(address, { lat, lng });
-    setSuggestions([]);
-    setIsTyping(false);
+  const handleSelect = async (prediction: { place_id: string; description: string }) => {
+    const placeDetails = await getPlaceDetails(prediction.place_id);
+    if (placeDetails) {
+      onChange(placeDetails.address);
+      onSelect(placeDetails.address, placeDetails.geometry);
+      setPredictions([]);
+      setIsTyping(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
     setIsTyping(true);
+    if (e.target.value) {
+      getPlacePredictions(e.target.value, userLocation);
+    } else {
+      setPredictions([]);
+    }
   };
 
   const inputStyles: React.CSSProperties = {
@@ -58,6 +53,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     fontSize: theme.typography.fontSize.base,
     width: '100%',
     marginBottom: theme.spacing.sm,
+    opacity: disabled ? 0.5 : 1,
   };
 
   const suggestionsContainerStyles: React.CSSProperties = {
@@ -94,16 +90,17 @@ export const AddressInput: React.FC<AddressInputProps> = ({
         onChange={handleChange}
         placeholder={placeholder}
         style={inputStyles}
+        disabled={disabled}
       />
-      {suggestions.length > 0 && (
+      {predictions.length > 0 && (
         <div style={suggestionsListStyles}>
-          {suggestions.map((suggestion) => (
+          {predictions.map((prediction) => (
             <div
-              key={suggestion.id}
+              key={prediction.place_id}
               style={suggestionItemStyles}
-              onClick={() => handleSelect(suggestion)}
+              onClick={() => handleSelect(prediction)}
             >
-              {suggestion.place_name}
+              {prediction.description}
             </div>
           ))}
         </div>

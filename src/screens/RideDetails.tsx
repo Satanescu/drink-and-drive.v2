@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { theme } from '../theme';
-import { Button, Card, Map } from '../components';
+import { Button, Card } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { ridesAPI } from '../api';
 import { ArrowLeft, Clock, DollarSign, MapPin } from 'lucide-react';
+import { RideDetailsMap } from '../components/RideDetailsMap';
 import { Location, ServiceType } from '../types';
-import { ViewState } from 'react-map-gl';
 
 interface RideDetailsState {
   pickup: {
@@ -20,29 +20,16 @@ interface RideDetailsState {
     lng: number;
   };
   serviceType: ServiceType;
+  estimatedTime: string;
+  estimatedPrice: number;
+  estimatedDistance: string;
 }
 
 export const RideDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { pickup, destination, serviceType } = location.state as RideDetailsState;
-
-  const [estimatedFare, setEstimatedFare] = useState<number | null>(null);
-  const [estimatedTime, setEstimatedTime] = useState<number | null>(null);
-  const [viewState, setViewState] = useState<Partial<ViewState>>({
-    latitude: (pickup.lat + destination.lat) / 2,
-    longitude: (pickup.lng + destination.lng) / 2,
-    zoom: 10,
-  });
-
-  useEffect(() => {
-    // In a real app, you would call an API to get fare and time estimates
-    // based on pickup, destination, and serviceType.
-    // For now, we'll use mock data.
-    setEstimatedFare(25.50);
-    setEstimatedTime(15);
-  }, [pickup, destination, serviceType]);
+  const { pickup, destination, serviceType, estimatedTime, estimatedPrice, estimatedDistance } = location.state as RideDetailsState;
 
   const handleConfirmRide = async () => {
     if (!user) {
@@ -60,7 +47,7 @@ export const RideDetails: React.FC = () => {
         destination_address: destination.address,
         destination_location: `POINT(${destination.lng} ${destination.lat})`,
         service_type: serviceType,
-        estimated_fare: estimatedFare,
+        estimated_fare: estimatedPrice,
         estimated_time: estimatedTime,
       };
       console.log('Ride request:', rideRequest);
@@ -74,11 +61,6 @@ export const RideDetails: React.FC = () => {
       alert('Failed to confirm ride. Please try again.');
     }
   };
-
-  const markers = [
-    { location: { lat: pickup.lat, lng: pickup.lng }, type: 'pickup' },
-    { location: { lat: destination.lat, lng: destination.lng }, type: 'destination' },
-  ];
 
   const containerStyles: React.CSSProperties = {
     minHeight: '100vh',
@@ -136,13 +118,7 @@ export const RideDetails: React.FC = () => {
       </div>
 
       <div style={{ height: '300px', marginBottom: theme.spacing.xl }}>
-        <Map
-          height="300px"
-          markers={markers}
-          viewState={viewState}
-          onViewStateChange={(e) => setViewState(e.viewState)}
-          onMarkerDragEnd={() => {}}
-        />
+        <RideDetailsMap pickup={pickup} destination={destination} />
       </div>
 
       <div style={contentStyles}>
@@ -160,12 +136,17 @@ export const RideDetails: React.FC = () => {
           <div style={detailRowStyles}>
             <Clock size={20} style={{ marginRight: theme.spacing.md }} />
             <div style={detailLabelStyles}>Estimated Time:</div>
-            <div style={detailValueStyles}>{estimatedTime} mins</div>
+            <div style={detailValueStyles}>{estimatedTime}</div>
           </div>
           <div style={detailRowStyles}>
             <DollarSign size={20} style={{ marginRight: theme.spacing.md }} />
             <div style={detailLabelStyles}>Estimated Fare:</div>
-            <div style={detailValueStyles}>${estimatedFare?.toFixed(2)}</div>
+            <div style={detailValueStyles}>{estimatedPrice?.toFixed(2)} RON</div>
+          </div>
+          <div style={detailRowStyles}>
+            <MapPin size={20} style={{ marginRight: theme.spacing.md }} />
+            <div style={detailLabelStyles}>Distance:</div>
+            <div style={detailValueStyles}>{estimatedDistance}</div>
           </div>
         </Card>
 
@@ -176,3 +157,4 @@ export const RideDetails: React.FC = () => {
     </div>
   );
 };
+

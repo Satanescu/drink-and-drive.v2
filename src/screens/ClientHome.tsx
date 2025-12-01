@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { theme } from '../theme';
-import { Button, Map, AddressInput } from '../components';
+import { Button, AddressInput } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Home, Briefcase, Clock, AlertCircle, User } from 'lucide-react';
 import { ServiceType, Location } from '../types';
-import { geocode, reverseGeocode } from '../lib/mapbox';
-import { ViewState } from 'react-map-gl';
+import { ClientMap } from '../components/ClientMap';
 import { useLanguage } from '../context/LanguageContext';
+import { useGeocoding } from '../hooks/useGeocoding';
+import { useDirections } from '../hooks/useDirections';
 
 export const ClientHome: React.FC = () => {
   const navigate = useNavigate();
@@ -18,54 +19,50 @@ export const ClientHome: React.FC = () => {
   const [pickupCoords, setPickupCoords] = useState<Location | null>(null);
   const [destinationCoords, setDestinationCoords] = useState<Location | null>(null);
   const [serviceType, setServiceType] = useState<ServiceType>('standard');
-  const [userLocation, setUserLocation] = useState<Location | null>(null);
-  const [bbox, setBbox] = useState<number[] | null>(null);
-  const [viewState, setViewState] = useState<Partial<ViewState>>({
-    latitude: 45.7606, // Timisoara
-    longitude: 21.2267,
-    zoom: 12,
-  });
+  const [estimatedTime, setEstimatedTime] = useState<string | null>(null);
+  const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
+  const [estimatedDistance, setEstimatedDistance] = useState<string | null>(null);
+  const { reverseGeocode } = useGeocoding();
+  const { getDirections } = useDirections();
 
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const { latitude, longitude } = position.coords;
           const location = { lat: latitude, lng: longitude };
-          setUserLocation(location);
-          setViewState((vs) => ({ ...vs, latitude, longitude, zoom: 14 }));
           setPickupCoords(location);
-          reverseGeocode(location).then((data) => {
-            if (data) {
-              const city = data.context.find((c: any) => c.id.startsWith('place'));
-              if (city && city.bbox) {
-                setBbox(city.bbox);
-              }
-            }
-          });
+          const address = await reverseGeocode(location);
+          if (address) {
+            setPickupAddress(address);
+          }
         },
         (error) => {
           console.error('Error getting user location:', error);
         }
       );
     }
-  }, []);
+  }, [reverseGeocode]);
 
-  const handleMarkerDragEnd = (e: any, type: 'pickup' | 'destination') => {
-    const { lng, lat } = e.lngLat;
-    const location = { lng, lat };
-    reverseGeocode(location).then((data) => {
-      if (data) {
-        if (type === 'pickup') {
-          setPickupAddress(data.place_name);
-          setPickupCoords(location);
-        } else {
-          setDestinationAddress(data.place_name);
-          setDestinationCoords(location);
+  useEffect(() => {
+    const calculateEstimations = async () => {
+      if (pickupCoords && destinationCoords) {
+        const directions = await getDirections(pickupCoords, destinationCoords);
+        if (directions) {
+          setEstimatedTime(directions.duration);
+          setEstimatedDistance(directions.distance);
+
+          const basePrice = serviceType === 'standard' ? 5 : 3; // Lei
+          const pricePerKm = serviceType === 'standard' ? 2.5 : 1.5;
+          const pricePerMinute = serviceType === 'standard' ? 0.5 : 0.3;
+
+          const totalCost = basePrice + (directions.distanceValue / 1000) * pricePerKm + (directions.durationValue / 60) * pricePerMinute;
+          setEstimatedPrice(totalCost);
         }
       }
-    });
-  };
+    };
+    calculateEstimations();
+  }, [pickupCoords, destinationCoords, getDirections, serviceType]);
 
   if (!user) {
     return null;
@@ -163,22 +160,40 @@ export const ClientHome: React.FC = () => {
       return;
     }
 
+    if (!estimatedTime || !estimatedPrice) {
+      alert('Please wait for the price and time estimation.');
+      return;
+    }
+
     navigate('/ride/details', {
       state: {
         destination: { ...destinationCoords, address: destinationAddress },
         pickup: { ...pickupCoords, address: pickupAddress },
         serviceType,
+        estimatedTime,
+        estimatedPrice,
+        estimatedDistance,
       },
     });
   };
 
-  const markers = [];
-  if (pickupCoords) {
-    markers.push({ location: pickupCoords, type: 'pickup' });
-  }
-  if (destinationCoords) {
-    markers.push({ location: destinationCoords, type: 'destination' });
-  }
+  const handleMarkerDragEnd = async (e: google.maps.MapMouseEvent, type: 'pickup' | 'destination') => {
+    const newCoords = {
+      lat: e.latLng!.lat(),
+      lng: e.latLng!.lng(),
+    };
+
+    const address = await reverseGeocode(newCoords);
+    if (address) {
+      if (type === 'pickup') {
+        setPickupCoords(newCoords);
+        setPickupAddress(address);
+      } else {
+        setDestinationCoords(newCoords);
+        setDestinationAddress(address);
+      }
+    }
+  };
 
   return (
     <div style={containerStyles}>
@@ -214,11 +229,10 @@ export const ClientHome: React.FC = () => {
           onSelect={(address, coords) => {
             setPickupAddress(address);
             setPickupCoords(coords);
-            setViewState((vs) => ({ ...vs, latitude: coords.lat, longitude: coords.lng, zoom: 14 }));
           }}
           placeholder={t('pickupAddress')}
-          userLocation={userLocation}
-          bbox={bbox}
+          userLocation={pickupCoords}
+          disabled={!pickupCoords}
         />
 
         <AddressInput
@@ -227,23 +241,39 @@ export const ClientHome: React.FC = () => {
           onSelect={(address, coords) => {
             setDestinationAddress(address);
             setDestinationCoords(coords);
-            setViewState((vs) => ({ ...vs, latitude: coords.lat, longitude: coords.lng, zoom: 14 }));
           }}
           placeholder={t('destinationAddress')}
-          userLocation={userLocation}
-          bbox={bbox}
+          userLocation={pickupCoords}
+          disabled={!pickupCoords}
         />
 
         <div style={mapContainerStyles}>
-          <Map
-            height="300px"
-            markers={markers}
-            viewState={viewState}
-            onViewStateChange={(e) => setViewState(e.viewState)}
-            onMarkerDragEnd={handleMarkerDragEnd}
-          />
+          <ClientMap pickup={pickupCoords} destination={destinationCoords} onMarkerDragEnd={handleMarkerDragEnd} />
         </div>
 
+                  {estimatedTime && estimatedPrice && (
+                    <div>
+                      <h3 style={{ ...sectionTitleStyles, color: theme.colors.text.primary }}>Estimations</h3>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: theme.spacing.lg }}>
+                        <div>
+                          <div style={{ fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
+                            {estimatedTime}
+                          </div>
+                          <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+                            Estimated Time
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: theme.typography.fontSize.lg, fontWeight: theme.typography.fontWeight.semibold, color: theme.colors.text.primary }}>
+                            {estimatedPrice.toFixed(2)} Lei
+                          </div>
+                          <div style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+                            Estimated Price
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
         <h3 style={sectionTitleStyles}>{t('serviceType')}</h3>
 
         <div style={serviceCardsContainerStyles}>

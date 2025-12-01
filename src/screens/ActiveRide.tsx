@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { theme } from '../theme';
-import { Button, BottomSheet, Map, Modal } from '../components';
+import { Button, BottomSheet, Modal } from '../components';
+import AppMap from '../components/MapConfig';
 import { ridesAPI } from '../api';
 import { MessageCircle, Phone, AlertTriangle, Share2, User } from 'lucide-react';
 import { Ride, Driver } from '../types';
@@ -162,7 +163,7 @@ export const ActiveRide: React.FC = () => {
       </div>
 
       <div style={mapContainerStyles}>
-        <Map height="100%" />
+        <AppMap />
       </div>
 
       <button style={sosButtonStyles} onClick={() => setShowSOSModal(true)}>

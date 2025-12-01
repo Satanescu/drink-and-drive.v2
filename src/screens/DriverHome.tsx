@@ -1,15 +1,9 @@
 import React, { useState } from 'react';
 import { theme } from '../theme';
-import { Map } from '../components';
-import { ViewState } from 'react-map-gl';
+import AppMap from '../components/MapConfig';
 
 export const DriverHome: React.FC = () => {
   const [isAvailable, setIsAvailable] = useState(false);
-  const [viewState, setViewState] = useState<Partial<ViewState>>({
-    latitude: 45.7606,
-    longitude: 21.2267,
-    zoom: 12,
-  });
 
   const containerStyles: React.CSSProperties = {
     minHeight: '100vh',
@@ -88,13 +82,7 @@ export const DriverHome: React.FC = () => {
           </label>
         </div>
       </div>
-      <Map
-        height="calc(100vh - 80px)"
-        viewState={viewState}
-        onViewStateChange={(e) => setViewState(e.viewState)}
-        markers={[]}
-        onMarkerDragEnd={() => {}}
-      />
+      <AppMap />
     </div>
   );
 };

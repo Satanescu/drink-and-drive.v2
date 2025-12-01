@@ -8,7 +8,7 @@ import { Onboarding } from './screens/Onboarding';
 import { Login } from './screens/Login';
 import { Register } from './screens/Register';
 import { ForgotPassword } from './screens/ForgotPassword';
-import { ClientHome } from './screens/ClientHome';
+import { ClientHomeWrapper } from './screens/ClientHomeWrapper';
 import { SafetyInfo } from './screens/SafetyInfo';
 import { Profile } from './screens/Profile';
 import { RideDetails } from './screens/RideDetails';
@@ -68,7 +68,7 @@ const AppContent: React.FC = () => {
       ) : activeRole ? (
         // Private routes for users with an active role
         <>
-          <Route path="/home" element={<ClientHome />} />
+          <Route path="/home" element={<ClientHomeWrapper />} />
           <Route path="/driver/map" element={<DriverMap />} />
           <Route path="/driver/onboarding/type-selection" element={<DriverTypeSelection />} />
           <Route path="/driver/onboarding/car-registration" element={<CarRegistration />} />

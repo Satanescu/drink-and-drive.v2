@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Map from 'react-map-gl/mapbox';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import AppMap from '../components/MapConfig';
 import { useAuth } from '../context/AuthContext';
 import { theme } from '../theme';
 import { Button, EarningsDisplay, GoButtonSheet, LastTripCard, QuestCard } from '../components';
 import { Search, User } from 'lucide-react';
-
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
 type ActiveCard = 'lastTrip' | 'quest' | null;
 
@@ -16,29 +13,6 @@ export const DriverMap: React.FC = () => {
   const navigate = useNavigate();
   const [isOnline, setIsOnline] = useState(false);
   const [activeCard, setActiveCard] = useState<ActiveCard>('lastTrip');
-  
-  const [viewport, setViewport] = useState({
-    latitude: 44.4268, // Default to Bucharest
-    longitude: 26.1025,
-    zoom: 13,
-  });
-
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setViewport((prev) => ({
-            ...prev,
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            zoom: 15,
-          }));
-        },
-        () => {}, // Empty error handler
-        { enableHighAccuracy: true }
-      );
-    }
-  }, []);
 
   const containerStyles: React.CSSProperties = {
     height: '100vh',
@@ -84,13 +58,7 @@ export const DriverMap: React.FC = () => {
 
   return (
     <div style={containerStyles}>
-      <Map
-        {...viewport}
-        onMove={evt => setViewport(evt.viewState)}
-        style={{width: '100%', height: '100%'}}
-        mapStyle="mapbox://styles/mapbox/dark-v11"
-        mapboxAccessToken={MAPBOX_TOKEN}
-      />
+      <AppMap />
 
       <div style={topBarStyles}>
         <Button variant="ghost" size="icon" style={avatarStyles}>
