@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { theme } from '../theme';
-import { Button, Card } from '../components';
-import { Clock, DollarSign } from 'lucide-react';
+import { Button, Card, Input } from '../components';
+import { ridesAPI } from '../api';
+import { useAuth } from '../context/AuthContext';
 import { Ride, Driver } from '../types';
+import { Star } from 'lucide-react';
 
 interface RideSummaryState {
   ride: Ride;
@@ -13,170 +15,84 @@ interface RideSummaryState {
 export const RideSummary: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const state = location.state as RideSummaryState;
+
   const ride = state?.ride;
   const driver = state?.driver;
 
   const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
 
-  if (!ride) {
-    return <div style={{ textAlign: 'center', padding: '2rem', color: theme.colors.text.primary }}>Eroare</div>;
-  }
+  const handleRating = async () => {
+    if (!user || !ride || !driver) return;
 
-  const handleContinue = () => {
-    navigate('/ride/feedback', { state: { ride, driver, rating } });
+    try {
+      await ridesAPI.submitRating({
+        rideId: ride.id,
+        fromUserId: user.id,
+        toUserId: driver.id,
+        driverRating: rating,
+        comfort: 0,
+        cleanliness: 0,
+        punctuality: 0,
+        comment: comment,
+        tags: [],
+      });
+      navigate('/home');
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      alert('Failed to submit rating. Please try again.');
+    }
   };
 
   const containerStyles: React.CSSProperties = {
     minHeight: '100vh',
     backgroundColor: theme.colors.background,
-    padding: theme.spacing.xl,
+    color: theme.colors.text.primary,
     fontFamily: theme.typography.fontFamily.primary,
+    padding: theme.spacing.xl,
   };
 
   const titleStyles: React.CSSProperties = {
-    fontSize: theme.typography.fontSize['2xl'],
+    fontSize: theme.typography.fontSize['3xl'],
     fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.success,
-    textAlign: 'center',
-    marginBottom: theme.spacing.lg,
-  };
-
-  const detailsGridStyles: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.xl,
-  };
-
-  const detailLabelStyles: React.CSSProperties = {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.sm,
-  };
-
-  const detailValueStyles: React.CSSProperties = {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.primary,
-  };
-
-  const routeCardStyles: React.CSSProperties = {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
-    borderRadius: theme.borderRadius.lg,
-    marginBottom: theme.spacing.xl,
-  };
-
-  const ratingContainerStyles: React.CSSProperties = {
     textAlign: 'center',
     marginBottom: theme.spacing.xl,
   };
 
-  const ratingLabelStyles: React.CSSProperties = {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.lg,
-  };
-
-  const starsContainerStyles: React.CSSProperties = {
+  const starContainerStyles: React.CSSProperties = {
     display: 'flex',
     justifyContent: 'center',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.xl,
   };
-
-  const starButtonStyles = (filled: boolean): React.CSSProperties => ({
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '2rem',
-    color: filled ? theme.colors.warning : theme.colors.border.medium,
-  });
 
   return (
     <div style={containerStyles}>
-      <h1 style={titleStyles}>Cursa finalizată!</h1>
-
-      <h2 style={{ fontSize: theme.typography.fontSize.lg, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: theme.spacing.md }}>
-        Detalii cursă
-      </h2>
-
-      <div style={detailsGridStyles}>
-        <Card padding="md" style={{ textAlign: 'center' }}>
-          <Clock size={20} color={theme.colors.primary} style={{ margin: '0 auto 0.5rem' }} />
-          <div style={detailLabelStyles}>Durată</div>
-          <div style={detailValueStyles}>15 min</div>
-        </Card>
-
-        <Card padding="md" style={{ textAlign: 'center' }}>
-          <DollarSign size={20} color={theme.colors.primary} style={{ margin: '0 auto 0.5rem' }} />
-          <div style={detailLabelStyles}>Cost final</div>
-          <div style={detailValueStyles}>{ride.actualCost || 40} lei</div>
-        </Card>
-      </div>
-
-      <h2 style={{ fontSize: theme.typography.fontSize.lg, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: theme.spacing.md }}>
-        Ruta
-      </h2>
-
-      <Card padding="lg" style={routeCardStyles}>
-        <div style={{ marginBottom: theme.spacing.md }}>
-          <div style={detailLabelStyles}>PLECARE</div>
-          <div style={{ fontSize: theme.typography.fontSize.base, color: theme.colors.text.primary }}>
-            {ride.pickup.address}
-          </div>
+      <h1 style={titleStyles}>Rate Your Ride</h1>
+      <Card>
+        <div style={starContainerStyles}>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Star
+              key={star}
+              size={48}
+              color={star <= rating ? theme.colors.primary : theme.colors.text.secondary}
+              onClick={() => setRating(star)}
+              style={{ cursor: 'pointer' }}
+            />
+          ))}
         </div>
-        <div style={{ borderTop: `1px solid ${theme.colors.border.light}`, paddingTop: theme.spacing.md }}>
-          <div style={detailLabelStyles}>DESTINAȚIE</div>
-          <div style={{ fontSize: theme.typography.fontSize.base, color: theme.colors.text.primary }}>
-            {ride.destination.address}
-          </div>
-        </div>
+        <Input
+          type="text"
+          placeholder="Leave a comment..."
+          value={comment}
+          onChange={setComment}
+          className="mb-4"
+        />
+        <Button onClick={handleRating} variant="primary" size="lg" fullWidth>
+          Submit Rating
+        </Button>
       </Card>
-
-      {driver && (
-        <>
-          <h2 style={{ fontSize: theme.typography.fontSize.lg, fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: theme.spacing.md }}>
-            Rating șofer
-          </h2>
-
-          <div style={ratingContainerStyles}>
-            <div style={ratingLabelStyles}>Cât de mulțumit ești?</div>
-            <div style={starsContainerStyles}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  style={starButtonStyles(star <= rating)}
-                  onClick={() => setRating(star)}
-                >
-                  ★
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      <div style={{ display: 'flex', gap: theme.spacing.md }}>
-        <Button
-          onClick={() => navigate('/home')}
-          variant="ghost"
-          size="lg"
-          fullWidth
-        >
-          Acasă
-        </Button>
-        <Button
-          onClick={handleContinue}
-          variant="primary"
-          size="lg"
-          fullWidth
-        >
-          Oferă feedback
-        </Button>
-      </div>
     </div>
   );
 };

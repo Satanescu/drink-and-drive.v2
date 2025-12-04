@@ -49,104 +49,56 @@ export const authAPI = {
   },
 
             async register(data: {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  role: 'client' | 'driver';
+}): Promise<{ user: User; token: string | null; message?: string }> {
+  console.log('Attempting to sign up with:', data.email, 'as', data.role);
 
-              fullName: string;
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email: data.email,
+    password: data.password,
+    options: {
+      data: {
+        full_name: data.fullName,
+        phone: data.phone,
+        role: data.role,
+      },
+    },
+  });
 
-              email: string;
+  if (authError) {
+    console.error('Supabase signUp error:', JSON.stringify(authError, null, 2));
+    throw new Error(`Auth Error: ${authError.message}`);
+  }
 
-              phone: string;
+  if (!authData.user) {
+    console.warn('Supabase signUp returned no user data, but no error either.');
+    throw new Error('Registration failed: No user data returned from Supabase.');
+  }
+  
+  console.log('Sign up successful for user:', authData.user.id);
 
-              password: string;
+  const user: User = {
+    id: authData.user.id,
+    fullName: data.fullName,
+    email: authData.user.email || '',
+    phone: data.phone,
+    role: data.role,
+    createdAt: new Date(),
+  };
 
-            }): Promise<{ user: User; token: string | null; message?: string }> {
+  if (!authData.session) {
+    return { user, token: null, message: 'Please check your email to confirm your registration.' };
+  }
 
-              console.log('Attempting to sign up with:', data.email);
+  localStorage.setItem('auth_token', authData.session.access_token);
+  localStorage.setItem('user', JSON.stringify(user));
 
-              
-
-              const { data: authData, error: authError } = await supabase.auth.signUp({
-
-                email: data.email,
-
-                password: data.password,
-
-                options: {
-
-                  data: {
-
-                    full_name: data.fullName,
-
-                    phone: data.phone,
-
-                    role: 'client',
-
-                  },
-
-                },
-
-              });
-
-        
-
-              if (authError) {
-
-                console.error('Supabase signUp error:', JSON.stringify(authError, null, 2));
-
-                throw new Error(`Auth Error: ${authError.message}`);
-
-              }
-
-        
-
-              if (!authData.user) {
-
-                console.warn('Supabase signUp returned no user data, but no error either.');
-
-                throw new Error('Registration failed: No user data returned from Supabase.');
-
-              }
-
-              
-
-              console.log('Sign up successful for user:', authData.user.id);
-
-        
-
-              const user: User = {
-
-                id: authData.user.id,
-
-                fullName: data.fullName,
-
-                email: authData.user.email || '',
-
-                phone: data.phone,
-
-                role: 'client',
-
-                createdAt: new Date(),
-
-              };
-
-        
-
-              if (!authData.session) {
-
-                return { user, token: null, message: 'Please check your email to confirm your registration.' };
-
-              }
-
-        
-
-              localStorage.setItem('auth_token', authData.session.access_token);
-
-              localStorage.setItem('user', JSON.stringify(user));
-
-        
-
-              return { user, token: authData.session.access_token };
-
-            },
+  return { user, token: authData.session.access_token };
+},
 
   async logout(): Promise<void> {
     const { error } = await supabase.auth.signOut();
@@ -214,6 +166,8 @@ export const authAPI = {
   },
 
   async updateUser(userId: string, updates: Partial<User>): Promise<User> {
+    console.log('[updateUser] Called with userId:', userId, 'and updates:', updates);
+
     // Update auth.users table for email/password changes
     const authUpdates: { email?: string; password?: string } = {};
     if (updates.email) authUpdates.email = updates.email;
@@ -224,6 +178,7 @@ export const authAPI = {
     if (Object.keys(authUpdates).length > 0) {
       const { error: authError } = await supabase.auth.updateUser(authUpdates);
       if (authError) {
+        console.error('[updateUser] Supabase auth update error:', authError);
         throw new Error(authError.message);
       }
     }
@@ -235,12 +190,20 @@ export const authAPI = {
       role?: UserRole;
       profile_photo?: string;
       rating?: number;
+      is_online?: boolean;
+      current_location_lat?: number;
+      current_location_lng?: number;
     } = {};
     if (updates.fullName) profileUpdates.full_name = updates.fullName;
     if (updates.phone) profileUpdates.phone = updates.phone;
     if (updates.role) profileUpdates.role = updates.role;
     if (updates.profilePhoto) profileUpdates.profile_photo = updates.profilePhoto;
     if (updates.rating) profileUpdates.rating = updates.rating;
+    if (updates.is_online !== undefined) profileUpdates.is_online = updates.is_online;
+    if (updates.current_location_lat) profileUpdates.current_location_lat = updates.current_location_lat;
+    if (updates.current_location_lng) profileUpdates.current_location_lng = updates.current_location_lng;
+
+    console.log('[updateUser] Constructed profileUpdates:', profileUpdates);
 
     if (Object.keys(profileUpdates).length > 0) {
       const { data: profileData, error: profileError } = await supabase
@@ -251,11 +214,14 @@ export const authAPI = {
         .maybeSingle();
 
       if (profileError) {
+        console.error('[updateUser] Supabase profile update error:', profileError);
         throw new Error(profileError.message);
       }
 
+      console.log('[updateUser] Supabase profile update successful:', profileData);
+
       if (!profileData) {
-        throw new Error('User profile not found.');
+        throw new Error('User profile not found after update.');
       }
 
       const updatedUser: User = {
@@ -267,6 +233,9 @@ export const authAPI = {
         profilePhoto: profileData.profile_photo,
         rating: profileData.rating,
         createdAt: new Date(profileData.created_at),
+        is_online: profileData.is_online,
+        current_location_lat: profileData.current_location_lat,
+        current_location_lng: profileData.current_location_lng,
       };
 
       localStorage.setItem('user', JSON.stringify(updatedUser));
@@ -302,6 +271,9 @@ export const authAPI = {
       profilePhoto: profileData.profile_photo,
       rating: profileData.rating,
       createdAt: new Date(profileData.created_at),
+      is_online: profileData.is_online,
+      current_location_lat: profileData.current_location_lat,
+      current_location_lng: profileData.current_location_lng,
     };
 
     localStorage.setItem('user', JSON.stringify(finalUser));

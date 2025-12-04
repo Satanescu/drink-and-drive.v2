@@ -51,16 +51,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: session.user.email || '',
         fullName: profile.full_name || 'No Name',
         role: profile.role,
+        vehicle_type: profile.vehicle_type,
         createdAt: new Date(profile.created_at)
       };
       setUser(user);
 
-      // If user is only a client, set role. If driver, leave null to force selection.
+      // If user is only a client, set role. If driver, leave null to force selection on first load.
       if (user.role === 'client') {
         setActiveRole('client');
-      } else {
-        setActiveRole(null); // Force choice for drivers
       }
+      
+      // For drivers, activeRole will be null initially, forcing a choice. 
+      // On subsequent loads, the activeRole chosen during the session will be preserved.
 
       if (user.role === 'driver') {
         const vehicleData = await fetchVehicles(user.id);

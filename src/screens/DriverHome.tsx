@@ -1,10 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { theme } from '../theme';
 import AppMap from '../components/MapConfig';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
+import { Ride } from '../types';
+import { ridesAPI } from '../api/rides';
+import { useNavigate } from 'react-router-dom';
 
 export const DriverHome: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [isAvailable, setIsAvailable] = useState(false);
+  const [rideRequests, setRideRequests] = useState<Ride[]>([]);
 
+  useEffect(() => {
+    if (user && user.vehicle_type) {
+      const channel = supabase.channel(`new-ride-requests-${user.vehicle_type}`);
+
+      channel
+        .on('broadcast', { event: 'new-ride' }, (payload) => {
+          console.log('New ride request:', payload);
+          setRideRequests((prev) => [...prev, payload.payload as Ride]);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user]);
+
+  const handleAcceptRide = async (ride: Ride) => {
+    if (!user) return;
+    try {
+      const { ride: acceptedRide } = await ridesAPI.acceptRideRequest(ride.id, user.id);
+      setRideRequests(prev => prev.filter(r => r.id !== ride.id));
+      navigate('/ride/active', { state: { ride: acceptedRide, driver: user } });
+    } catch (error) {
+      console.error('Error accepting ride:', error);
+    }
+  };
   const containerStyles: React.CSSProperties = {
     minHeight: '100vh',
     backgroundColor: theme.colors.background,
@@ -83,6 +118,21 @@ export const DriverHome: React.FC = () => {
         </div>
       </div>
       <AppMap />
+      <div style={{ padding: theme.spacing.xl }}>
+        <h2>Ride Requests</h2>
+        {rideRequests.map((ride) => (
+          <div key={ride.id} style={{ border: '1px solid white', padding: '1rem', marginBottom: '1rem' }}>
+            <p>From: {ride.pickup.address}</p>
+            <p>To: {ride.destination.address}</p>
+            <p>Price: {ride.estimatedCost.min.toFixed(2)} - {ride.estimatedCost.max.toFixed(2)} RON</p>
+            <p>Time: {ride.estimatedDuration}</p>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={() => handleAcceptRide(ride)}>Accept</button>
+              <button onClick={() => setRideRequests(prev => prev.filter(r => r.id !== ride.id))}>Decline</button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

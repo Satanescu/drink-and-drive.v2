@@ -2,19 +2,37 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { theme } from '../theme';
 import { Button } from '../components';
+import { authAPI } from '../api/auth';
 
 export const RoleSelection: React.FC = () => {
   const { user, switchActiveRole } = useAuth();
 
-  const handleRoleSelection = (role: 'client' | 'driver') => {
+  const handleRoleSelection = async (role: 'client' | 'driver') => {
     console.log(`RoleSelection: handleRoleSelection called with role: ${role}`);
-    // This component should only be visible for users who are drivers
-    // but haven't chosen their active role for the session yet.
-    if (user?.role === 'driver') {
+    if (!user) return;
+
+    // Workaround for new users whose role is null in the database
+    const currentRole = user.role || 'client'; 
+
+    // Existing driver switching modes
+    if (currentRole === 'driver') {
         switchActiveRole(role);
-    } else if (user?.role === 'client' && role === 'client') {
-        // If a client lands here for some reason, let them proceed.
+    } 
+    // Client choosing to stay a client
+    else if (currentRole === 'client' && role === 'client') {
         switchActiveRole('client');
+    }
+    // Client (or new user) choosing to become a driver
+    else if (currentRole === 'client' && role === 'driver') {
+        try {
+            await authAPI.updateUser(user.id, { role: 'driver' });
+            // The onAuthStateChange listener in AuthContext should pick up the change,
+            // but we call switchActiveRole here for a smoother UX.
+            switchActiveRole('driver');
+        } catch (error) {
+            console.error("Failed to update user role:", error);
+            // Here you might want to show an error to the user
+        }
     }
   };
 
@@ -47,12 +65,9 @@ export const RoleSelection: React.FC = () => {
         <Button onClick={() => handleRoleSelection('client')} variant="primary" size="lg">
           Passenger
         </Button>
-        {/* Only show the Driver button if the user is actually a driver */}
-        {user?.role === 'driver' && (
-            <Button onClick={() => handleRoleSelection('driver')} variant="secondary" size="lg">
+        <Button onClick={() => handleRoleSelection('driver')} variant="secondary" size="lg">
                 Driver
             </Button>
-        )}
       </div>
     </div>
   );

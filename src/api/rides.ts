@@ -9,6 +9,9 @@ export const ridesAPI = {
     destination: Location;
     paymentMethod: string;
     promoCode?: string;
+    estimatedTime: number;
+    estimatedPrice: { min: number; max: number };
+    estimatedDistance: number;
   }): Promise<Ride> {
     const { data: newRideData, error } = await supabase
       .from('rides')
@@ -25,6 +28,10 @@ export const ridesAPI = {
         payment_method: data.paymentMethod,
         promo_code: data.promoCode,
         created_at: new Date().toISOString(),
+        estimated_duration: data.estimatedTime,
+        estimated_cost_min: data.estimatedPrice.min,
+        estimated_cost_max: data.estimatedPrice.max,
+        estimated_distance: data.estimatedDistance,
       })
       .select()
       .single();
@@ -33,151 +40,96 @@ export const ridesAPI = {
       throw new Error(error.message);
     }
 
-    // Simulate estimated distance, duration, and cost for now
-    const distance = Math.random() * 10 + 2;
-    const duration = Math.round(distance * 3 + Math.random() * 5);
-    const baseCost = distance * 8 + 15;
-
-    const updatedRideData = {
-      estimated_distance: parseFloat(distance.toFixed(1)),
-      estimated_duration: duration,
-      estimated_cost_min: Math.round(baseCost * 0.9),
-      estimated_cost_max: Math.round(baseCost * 1.1),
-    };
-
-    const { data: finalRideData, error: updateError } = await supabase
-      .from('rides')
-      .update(updatedRideData)
-      .eq('id', newRideData.id)
-      .select()
-      .single();
-
-    if (updateError) {
-      throw new Error(updateError.message);
-    }
-
-    return {
-      id: finalRideData.id,
-      clientId: finalRideData.client_id,
-      driverId: finalRideData.driver_id || undefined,
-      serviceType: finalRideData.service_type as ServiceType,
-      status: finalRideData.status as RideStatus,
+    const ride: Ride = {
+      id: newRideData.id,
+      clientId: newRideData.client_id,
+      driverId: newRideData.driver_id || undefined,
+      serviceType: newRideData.service_type as ServiceType,
+      status: newRideData.status as RideStatus,
       pickup: {
-        lat: finalRideData.pickup_lat,
-        lng: finalRideData.pickup_lng,
-        address: finalRideData.pickup_address || undefined,
+        lat: newRideData.pickup_lat,
+        lng: newRideData.pickup_lng,
+        address: newRideData.pickup_address || undefined,
       },
       destination: {
-        lat: finalRideData.destination_lat,
-        lng: finalRideData.destination_lng,
-        address: finalRideData.destination_address || undefined,
+        lat: newRideData.destination_lat,
+        lng: newRideData.destination_lng,
+        address: newRideData.destination_address || undefined,
       },
-      estimatedDistance: finalRideData.estimated_distance,
-      estimatedDuration: finalRideData.estimated_duration,
+      estimatedDistance: newRideData.estimated_distance,
+      estimatedDuration: newRideData.estimated_duration,
       estimatedCost: {
-        min: finalRideData.estimated_cost_min,
-        max: finalRideData.estimated_cost_max,
+        min: newRideData.estimated_cost_min,
+        max: newRideData.estimated_cost_max,
       },
-      actualCost: finalRideData.actual_cost || undefined,
-      paymentMethod: finalRideData.payment_method as PaymentMethod,
-      promoCode: finalRideData.promo_code || undefined,
-      scheduledFor: finalRideData.scheduled_for ? new Date(finalRideData.scheduled_for) : undefined,
-      startedAt: finalRideData.started_at ? new Date(finalRideData.started_at) : undefined,
-      completedAt: finalRideData.completed_at ? new Date(finalRideData.completed_at) : undefined,
-      cancelledAt: finalRideData.cancelled_at ? new Date(finalRideData.cancelled_at) : undefined,
-      cancelReason: finalRideData.cancel_reason || undefined,
-      createdAt: new Date(finalRideData.created_at),
+      actualCost: newRideData.actual_cost || undefined,
+      paymentMethod: newRideData.payment_method as PaymentMethod,
+      promoCode: newRideData.promo_code || undefined,
+      scheduledFor: newRideData.scheduled_for ? new Date(newRideData.scheduled_for) : undefined,
+      startedAt: newRideData.started_at ? new Date(newRideData.started_at) : undefined,
+      completedAt: newRideData.completed_at ? new Date(newRideData.completed_at) : undefined,
+      cancelledAt: newRideData.cancelled_at ? new Date(newRideData.cancelled_at) : undefined,
+      cancelReason: newRideData.cancel_reason || undefined,
+      createdAt: new Date(newRideData.created_at),
     };
+
+    // Don't wait for the driver search to complete
+    this.findDriver(ride);
+
+    return ride;
   },
 
-  async findDriver(rideId: string): Promise<{ ride: Ride; driver: Driver }> {
-    // Find an available driver (this is a simplified mock for now)
+  async findDriver(ride: Ride): Promise<void> {
+    console.log(`[findDriver] Called for ride ID: ${ride.id}`);
+
+    // Fetch all available drivers for the service type
     const { data: availableDrivers, error: driverError } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, vehicle_type')
       .eq('role', 'driver')
       .eq('is_online', true)
-      .limit(1);
+      .eq('vehicle_type', ride.serviceType);
 
     if (driverError) {
+      console.error('[findDriver] Error fetching available drivers:', driverError);
       throw new Error(driverError.message);
     }
 
     if (!availableDrivers || availableDrivers.length === 0) {
-      throw new Error('Nu am găsit șoferi disponibili');
+      console.log('[findDriver] No available drivers found for service type:', ride.serviceType);
+      return;
     }
 
-    const availableDriverProfile = availableDrivers[0];
+    console.log(`[findDriver] Found ${availableDrivers.length} available drivers.`);
 
-    // Update the ride with the found driver
-    const { data: updatedRideData, error: rideUpdateError } = await supabase
-      .from('rides')
-      .update({
-        driver_id: availableDriverProfile.id,
-        status: 'driver-found',
-      })
-      .eq('id', rideId)
-      .select()
-      .single();
+    // Broadcast the ride request to all available drivers
+    const channelName = `new-ride-requests-${ride.serviceType}`;
+    const channel = supabase.channel(channelName);
 
-    if (rideUpdateError) {
-      throw new Error(rideUpdateError.message);
+    const payload = {
+      event: 'new-ride',
+      payload: ride,
+    };
+
+    console.log(`[findDriver] Broadcasting 'new-ride' on channel '${channelName}' with payload:`, payload);
+
+    const broadcastResponse = await channel.send({
+      type: 'broadcast',
+      ...payload,
+    });
+
+    console.log('[findDriver] Supabase broadcast response:', broadcastResponse);
+
+    if (broadcastResponse !== 'ok') {
+      console.error('[findDriver] Failed to broadcast new ride request.');
+      // It might be useful to have some retry logic or error handling here
     }
 
-    const driver: Driver = {
-      id: availableDriverProfile.id,
-      fullName: availableDriverProfile.full_name,
-      email: availableDriverProfile.email || '',
-      phone: availableDriverProfile.phone,
-      role: availableDriverProfile.role as 'driver',
-      vehicleId: availableDriverProfile.vehicle_id || undefined,
-      isOnline: availableDriverProfile.is_online,
-      currentLocation: {
-        lat: availableDriverProfile.current_location_lat,
-        lng: availableDriverProfile.current_location_lng,
-        address: availableDriverProfile.current_location_address || undefined,
-      },
-      totalRides: availableDriverProfile.total_rides || 0,
-      averageRating: availableDriverProfile.average_rating || 0,
-      verified: availableDriverProfile.verified || false,
-      createdAt: new Date(availableDriverProfile.created_at),
-    };
-
-    const ride: Ride = {
-      id: updatedRideData.id,
-      clientId: updatedRideData.client_id,
-      driverId: updatedRideData.driver_id || undefined,
-      serviceType: updatedRideData.service_type as ServiceType,
-      status: updatedRideData.status as RideStatus,
-      pickup: {
-        lat: updatedRideData.pickup_lat,
-        lng: updatedRideData.pickup_lng,
-        address: updatedRideData.pickup_address || undefined,
-      },
-      destination: {
-        lat: updatedRideData.destination_lat,
-        lng: updatedRideData.destination_lng,
-        address: updatedRideData.destination_address || undefined,
-      },
-      estimatedDistance: updatedRideData.estimated_distance,
-      estimatedDuration: updatedRideData.estimated_duration,
-      estimatedCost: {
-        min: updatedRideData.estimated_cost_min,
-        max: updatedRideData.estimated_cost_max,
-      },
-      actualCost: updatedRideData.actual_cost || undefined,
-      paymentMethod: updatedRideData.payment_method as PaymentMethod,
-      promoCode: updatedRideData.promo_code || undefined,
-      scheduledFor: updatedRideData.scheduled_for ? new Date(updatedRideData.scheduled_for) : undefined,
-      startedAt: updatedRideData.started_at ? new Date(updatedRideData.started_at) : undefined,
-      completedAt: updatedRideData.completed_at ? new Date(updatedRideData.completed_at) : undefined,
-      cancelledAt: updatedRideData.cancelled_at ? new Date(updatedRideData.cancelled_at) : undefined,
-      cancelReason: updatedRideData.cancel_reason || undefined,
-      createdAt: new Date(updatedRideData.created_at),
-    };
-
-    return { ride, driver };
+    // Since we're broadcasting, we don't return a single driver anymore.
+    // The function is now async but might not need to return anything.
   },
+
+
 
   async getRideById(rideId: string): Promise<Ride> {
     const { data: rideData, error } = await supabase
@@ -524,36 +476,14 @@ export const ridesAPI = {
     }));
   },
 
-  async acceptRideRequest(requestId: string, driverId: string): Promise<{ ride: Ride }> {
-    // Update the ride request status
-    const { error: requestUpdateError } = await supabase
-      .from('ride_requests')
-      .update({ status: 'accepted' })
-      .eq('id', requestId);
-
-    if (requestUpdateError) {
-      throw new Error(requestUpdateError.message);
-    }
-
-    // Get the ride ID from the request
-    const { data: rideRequest, error: fetchRequestError } = await supabase
-      .from('ride_requests')
-      .select('ride_id')
-      .eq('id', requestId)
-      .single();
-
-    if (fetchRequestError || !rideRequest) {
-      throw new Error('Cererea nu a fost găsită');
-    }
-
-    // Update the ride status and assign driver
+  async acceptRideRequest(rideId: string, driverId: string): Promise<{ ride: Ride }> {
     const { data: updatedRideData, error: rideUpdateError } = await supabase
       .from('rides')
       .update({
         driver_id: driverId,
         status: 'driver-found',
       })
-      .eq('id', rideRequest.ride_id)
+      .eq('id', rideId)
       .select()
       .single();
 

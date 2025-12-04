@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { theme } from '../theme';
 import { Button, BottomSheet, Modal } from '../components';
@@ -6,6 +6,9 @@ import AppMap from '../components/MapConfig';
 import { ridesAPI } from '../api';
 import { MessageCircle, Phone, AlertTriangle, Share2, User } from 'lucide-react';
 import { Ride, Driver } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { DriverActiveRide } from './DriverActiveRide';
+import { supabase } from '../lib/supabase';
 
 interface ActiveRideState {
   ride: Ride;
@@ -15,6 +18,7 @@ interface ActiveRideState {
 export const ActiveRide: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const state = location.state as ActiveRideState;
 
   const ride = state?.ride;
@@ -24,14 +28,31 @@ export const ActiveRide: React.FC = () => {
   const [showSOSModal, setShowSOSModal] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
 
+  useEffect(() => {
+    if (!ride) return;
+
+    const channel = supabase
+      .channel(`ride-${ride.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rides', filter: `id=eq.${ride.id}` }, (payload) => {
+        const updatedRide = payload.new as Ride;
+        if (updatedRide.status === 'completed') {
+          navigate('/ride/summary', { state: { ride: updatedRide, driver } });
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [ride, driver, navigate]);
+
   if (!ride || !driver) {
     return <div style={{ textAlign: 'center', padding: '2rem', color: theme.colors.text.primary }}>Eroare</div>;
   }
 
-  const handleFinish = async () => {
-    await ridesAPI.updateRideStatus(ride.id, 'completed');
-    navigate('/ride/summary', { state: { ride, driver } });
-  };
+  if (user?.role === 'driver') {
+    return <DriverActiveRide />;
+  }
 
   const handleSOS = (type: 'call' | 'contact') => {
     if (type === 'call') {
@@ -163,7 +184,7 @@ export const ActiveRide: React.FC = () => {
       </div>
 
       <div style={mapContainerStyles}>
-        <AppMap />
+        <AppMap center={driver.currentLocation} />
       </div>
 
       <button style={sosButtonStyles} onClick={() => setShowSOSModal(true)}>
@@ -179,14 +200,7 @@ export const ActiveRide: React.FC = () => {
         >
           Opțiuni
         </Button>
-        <Button
-          onClick={handleFinish}
-          variant="primary"
-          size="lg"
-          fullWidth
-        >
-          Finalizează
-        </Button>
+        
       </div>
 
       <BottomSheet isOpen={showOptions} onClose={() => setShowOptions(false)} height="half">

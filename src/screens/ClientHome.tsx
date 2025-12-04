@@ -9,6 +9,7 @@ import { ClientMap } from '../components/ClientMap';
 import { useLanguage } from '../context/LanguageContext';
 import { useGeocoding } from '../hooks/useGeocoding';
 import { useDirections } from '../hooks/useDirections';
+import { supabase } from '../lib/supabase';
 
 export const ClientHome: React.FC = () => {
   const navigate = useNavigate();
@@ -154,14 +155,18 @@ export const ClientHome: React.FC = () => {
     setServiceType(type);
   };
 
+
+
+// ...
+
   const handleContinue = () => {
-    if (!pickupAddress || !destinationAddress) {
+    if (!pickupAddress || !destinationAddress || !pickupCoords || !destinationCoords) {
       alert(t('chooseAddresses'));
       return;
     }
 
-    if (!estimatedTime || !estimatedPrice) {
-      alert('Please wait for the price and time estimation.');
+    if (!estimatedTime || !estimatedPrice || !estimatedDistance) {
+      alert('Please wait for the price and time estimation to be calculated.');
       return;
     }
 

@@ -13,3 +13,4 @@ export * from './LastTripCard';
 export * from './ClientMap';
 export * from './RideDetailsMap';
 export * from './QuestCard';
+export * from './RideRequestCard';

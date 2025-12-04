@@ -1,5 +1,5 @@
 export type UserRole = 'client' | 'driver' | 'admin';
-export type ServiceType = 'standard' | 'own-car' | 'scheduled';
+export type ServiceType = 'standard' | 'own-car';
 export type RideStatus = 'searching' | 'driver-found' | 'driver-arriving' | 'in-progress' | 'completed' | 'cancelled';
 export type PaymentMethod = 'cash' | 'card' | 'online';
 
@@ -11,13 +11,17 @@ export interface Location {
 
 export interface User {
   id: string;
-  fullName: string;
   email: string;
-  phone: string;
+  fullName: string;
   role: UserRole;
+  vehicle_type?: 'car' | 'scooter';
+  phone?: string;
   profilePhoto?: string;
   rating?: number;
   createdAt: Date;
+  is_online?: boolean;
+  current_location_lat?: number;
+  current_location_lng?: number;
 }
 
 export interface Driver extends User {
@@ -32,30 +36,20 @@ export interface Driver extends User {
 
 export interface Vehicle {
   id: string;
-  make: string;
-  model: string;
-  year: number;
-  licensePlate: string;
-  color: string;
-  driverId: string;
-}
-
-export interface SavedAddress {
-  id: string;
-  userId: string;
-  label: string;
-  location: Location;
-}
-
-export interface EmergencyContact {
-  id: string;
-  userId: string;
-  name: string;
-  phone: string;
+  driver_id: string;
+  vehicle_type: 'car' | 'scooter';
+  license_plate?: string;
+  manufacturer?: string;
+  model?: string;
+  year?: number;
+  color?: string;
+  category?: string;
+  insurance_details?: string;
+  photo_url?: string;
 }
 
 export interface Ride {
-  id: string;
+  id: number;
   clientId: string;
   driverId?: string;
   serviceType: ServiceType;
@@ -64,7 +58,10 @@ export interface Ride {
   destination: Location;
   estimatedDistance: number;
   estimatedDuration: number;
-  estimatedCost: { min: number; max: number };
+  estimatedCost: {
+    min: number;
+    max: number;
+  };
   actualCost?: number;
   paymentMethod: PaymentMethod;
   promoCode?: string;
@@ -74,38 +71,4 @@ export interface Ride {
   cancelledAt?: Date;
   cancelReason?: string;
   createdAt: Date;
-}
-
-export interface Rating {
-  id: string;
-  rideId: string;
-  fromUserId: string;
-  toUserId: string;
-  driverRating: number;
-  comfort: number;
-  cleanliness: number;
-  punctuality: number;
-  comment?: string;
-  tags: string[];
-  createdAt: Date;
-}
-
-export interface RideRequest {
-  id: string;
-  rideId: string;
-  driverId: string;
-  distanceToClient: number;
-  estimatedEarnings: number;
-  status: 'pending' | 'accepted' | 'rejected' | 'expired';
-  createdAt: Date;
-}
-
-export interface UserPreferences {
-  userId: string;
-  language: 'ro';
-  notifications: {
-    reminders: boolean;
-    promotions: boolean;
-    locationReminders: boolean;
-  };
 }

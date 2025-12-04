@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
         id: user_id,
         full_name: full_name,
         phone: phone,
-        role: 'user',
+        role: null,
       })
       .select()
       .single();

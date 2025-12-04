@@ -13,6 +13,7 @@ export const Register = () => {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [role, setRole] = useState<'client' | 'driver'>('client');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -27,6 +28,7 @@ export const Register = () => {
         email: email,
         phone: phone,
         password: password,
+        role: role,
       });
 
       // Success! Redirect to dashboard
@@ -72,6 +74,13 @@ export const Register = () => {
     marginBottom: theme.spacing.md,
   };
 
+  const roleSelectionStyles: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+  };
+
   return (
     <div style={containerStyles}>
       <form onSubmit={handleRegister} style={formStyles}>
@@ -109,6 +118,26 @@ export const Register = () => {
           icon={<Phone size={20} color={theme.colors.text.secondary} />}
           className="mb-6"
         />
+        <div style={roleSelectionStyles}>
+          <label>
+            <input
+              type="radio"
+              value="client"
+              checked={role === 'client'}
+              onChange={() => setRole('client')}
+            />
+            Passenger
+          </label>
+          <label>
+            <input
+              type="radio"
+              value="driver"
+              checked={role === 'driver'}
+              onChange={() => setRole('driver')}
+            />
+            Driver
+          </label>
+        </div>
         <Button type="submit" variant="primary" size="lg" fullWidth disabled={loading}>
           {loading ? 'Registering...' : 'Register'}
         </Button>

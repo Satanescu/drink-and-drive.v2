@@ -4,9 +4,11 @@ import { theme } from '../theme';
 import { Button, Card } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { ridesAPI } from '../api';
+import { supabase } from '../lib/supabase';
 import { ArrowLeft, Clock, DollarSign, MapPin } from 'lucide-react';
 import { RideDetailsMap } from '../components/RideDetailsMap';
 import { Location, ServiceType } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 interface RideDetailsState {
   pickup: {
@@ -29,6 +31,7 @@ export const RideDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { pickup, destination, serviceType, estimatedTime, estimatedPrice, estimatedDistance } = location.state as RideDetailsState;
 
   const handleConfirmRide = async () => {
@@ -38,24 +41,27 @@ export const RideDetails: React.FC = () => {
     }
 
     try {
-      // In a real app, this would create a ride request in the database
-      // and trigger driver matching.
-      const rideRequest = {
-        passenger_id: user.id,
-        pickup_address: pickup.address,
-        pickup_location: `POINT(${pickup.lng} ${pickup.lat})`,
-        destination_address: destination.address,
-        destination_location: `POINT(${destination.lng} ${destination.lat})`,
-        service_type: serviceType,
-        estimated_fare: estimatedPrice,
-        estimated_time: estimatedTime,
-      };
-      console.log('Ride request:', rideRequest);
+      const newRide = await ridesAPI.createRide({
+        clientId: user.id,
+        serviceType,
+        pickup,
+        destination,
+        paymentMethod: 'card', // Assuming card for now
+        estimatedTime: parseInt(estimatedTime, 10),
+        estimatedPrice: { min: estimatedPrice, max: estimatedPrice },
+        estimatedDistance: parseFloat(estimatedDistance),
+      });
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const vehicleType = serviceType === 'standard' ? 'car' : 'scooter';
+      const channel = supabase.channel(`new-ride-requests-${vehicleType}`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'new-ride',
+        payload: newRide,
+      });
+      
+      navigate('/ride/searching', { state: { ride: newRide } });
 
-      navigate('/ride/searching');
     } catch (error) {
       console.error('Error confirming ride:', error);
       alert('Failed to confirm ride. Please try again.');
@@ -157,4 +163,3 @@ export const RideDetails: React.FC = () => {
     </div>
   );
 };
-
